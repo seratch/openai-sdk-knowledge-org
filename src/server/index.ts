@@ -40,7 +40,7 @@ import {
   setDefaultOpenAIKey,
   setTracingExportApiKey,
 } from "@openai/agents-openai";
-import { buildOpenAIModelProviderForOnlineAccess } from "@/oepnai-client";
+import { buildOpenAIModelProviderForOnlineAccess } from "@/openai-client";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
 import { Logger } from "@/logger";

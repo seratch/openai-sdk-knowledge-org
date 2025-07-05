@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 
 import { Logger } from "@/logger";
-import { buildOpenAIClientForOnlineAccess } from "@/oepnai-client";
+import { buildOpenAIClientForOnlineAccess } from "@/openai-client";
 import { Env } from "@/env";
 
 export interface LanguageDetectionResult {

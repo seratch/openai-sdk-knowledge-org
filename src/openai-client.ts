@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { ModelProvider, OpenAIProvider } from "@openai/agents";
 
-function buildClouldflareAPGatewayURL(env: {
+function buildCloudflareAIGatewayURL(env: {
   CLOUDFLARE_ACCOUNT_ID?: string;
   CLOUDFLARE_AI_GATEWAY_ID?: string;
 }): string {
@@ -16,7 +16,7 @@ export function buildOpenAIClientForOnlineAccess(env: {
   if (env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_AI_GATEWAY_ID) {
     return new OpenAI({
       apiKey: env.OPENAI_API_KEY,
-      baseURL: buildClouldflareAPGatewayURL(env),
+      baseURL: buildCloudflareAIGatewayURL(env),
     });
   } else {
     return new OpenAI({
@@ -28,7 +28,7 @@ export function buildOpenAIClientForOnlineAccess(env: {
 export function buildOpenAIClientForDataPipeline(env: {
   OPENAI_API_KEY: string;
 }): OpenAI {
-  // Intentionally does not use AI Gateway to avoid being in the same rate limite policy with the online users
+  // Intentionally does not use AI Gateway to avoid being in the same rate limit policy with the online users
   return new OpenAI({
     apiKey: env.OPENAI_API_KEY,
   });
@@ -42,7 +42,7 @@ export function buildOpenAIModelProviderForOnlineAccess(env: {
   if (env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_AI_GATEWAY_ID) {
     return new OpenAIProvider({
       apiKey: env.OPENAI_API_KEY,
-      baseURL: buildClouldflareAPGatewayURL(env),
+      baseURL: buildCloudflareAIGatewayURL(env),
     });
   } else {
     return new OpenAIProvider({
@@ -54,7 +54,7 @@ export function buildOpenAIModelProviderForOnlineAccess(env: {
 export function buildOpenAIModelProviderForDataPipeline(env: {
   OPENAI_API_KEY: string;
 }): ModelProvider {
-  // Intentionally does not use AI Gateway to avoid being in the same rate limite policy with the online users
+  // Intentionally does not use AI Gateway to avoid being in the same rate limit policy with the online users
   return new OpenAIProvider({
     apiKey: env.OPENAI_API_KEY,
   });

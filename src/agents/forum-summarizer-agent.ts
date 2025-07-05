@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import { Logger } from "@/logger";
 import type { TopicDetails } from "@/pipeline/collectors/forum";
 import { RateLimiter } from "@/rate-limiter";
-import { buildOpenAIClientForDataPipeline } from "@/oepnai-client";
+import { buildOpenAIClientForDataPipeline } from "@/openai-client";
 import { Env } from "@/env";
 
 export interface ForumPostSummary {
