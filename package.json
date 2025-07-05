@@ -1,0 +1,54 @@
+{
+  "name": "openai-sdk-knowledge-org",
+  "version": "1.0.0",
+  "description": "OpenAI SDK Knowledge MCP - Expert-level answers about OpenAI API usage with MCP Server integration",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --experimental-vectorize-bind-to-prod --persist-to .wrangler/state",
+    "build": "tsc",
+    "deploy": "wrangler deploy",
+    "deploy:prod": "wrangler deploy --env=production",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "type-check": "tsc --noEmit",
+    "test": "npm run type-check && jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "db:reset:dev": "rm -rf .wrangler/ && npm run db:migrate:dev",
+    "db:migrate:dev": "wrangler d1 migrations apply openai-sdk-knowledge-mcp-db --local",
+    "db:migrate:prod": "CI=1 wrangler d1 migrations apply openai-sdk-knowledge-mcp-db --env=production --remote",
+    "count-lines": "echo \"Counting lines of code...\" && MAIN=$(find src -name '*.ts' -not -path 'src/__tests__/*' -exec wc -l {} + | tail -1 | awk '{print $1}') && TESTS=$(find src/__tests__ -name '*.ts' -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}' || echo 0) && TOTAL=$((MAIN + TESTS)) && echo \"main: $MAIN lines, tests: $TESTS lines, total: $TOTAL lines\""
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.13.2",
+    "@openai/agents": "^0.0.10",
+    "@tsndr/cloudflare-worker-jwt": "^2.4.2",
+    "drizzle-orm": "^0.29.5",
+    "hono": "^4.0.0",
+    "openai": "^5.8.2",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.0.0",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "concurrently": "^9.2.0",
+    "eslint": "^8.0.0",
+    "jest": "^29.5.0",
+    "jest-environment-node": "^29.5.0",
+    "prettier": "^3.0.0",
+    "ts-jest": "^29.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0",
+    "wrangler": "^4.23.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "keywords": [],
+  "author": "Kazuhiro Sera <seratch@gmail.com>",
+  "license": "MIT"
+}

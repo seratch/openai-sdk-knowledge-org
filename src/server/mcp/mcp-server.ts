@@ -1,0 +1,505 @@
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
+import { InputGuardrailTripwireTriggered } from "@openai/agents";
+
+import type { Env } from "@/env";
+import { getVectorStore } from "@/storage/vector-store";
+import { POLICY_MESSAGE } from "@/agents/guardrails/input-guardrails";
+import { createMainAgent } from "@/agents/main-agent";
+import { Logger } from "@/logger";
+
+export const SERVER_NAME = "openai-sdk-mcp";
+
+export class MCPServer {
+  private server: Server;
+  private env: Env;
+
+  constructor(env: Env) {
+    this.env = env;
+    this.server = new Server(
+      { name: SERVER_NAME, version: "1.0.0" },
+      {
+        capabilities: {
+          tools: {},
+          resources: {},
+        },
+        instructions:
+          "This MCP server helps developers to learn how to use OpenAI platform features and its SDKs. You can ask questions on how to call APIs, code examples using OpenAI Angents SDK for Python/TypeScript, and other questions on the platform features.",
+      },
+    );
+    this.server.oninitialized = () => {};
+
+    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+      return { tools: buildTools(false) };
+    });
+
+    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+      const { name, arguments: args } = request.params;
+      if (!args) {
+        throw new Error("Tool arguments are required");
+      }
+      switch (name) {
+        case TOOL_SEARCH_OPENAI_SDK_AND_DOCS:
+          return await this.callSearch(args);
+        case TOOL_CHATGPT_DR_SEARCH:
+          return await this.callChatGPTDRSearch(args);
+        case TOOL_CHATGPT_DR_FETCH:
+          return await this.callChatGPTDRFetch(args);
+        default:
+          throw new Error(`Unknown tool: ${name}`);
+      }
+    });
+  }
+
+  async callSearch({ query }: Record<string, any>): Promise<{
+    content: Array<{ type: string; text: string }>;
+  }> {
+    try {
+      if (!this.env.OPENAI_API_KEY) {
+        return {
+          content: [
+            { type: "text", text: "Error: OpenAI API key not configured" },
+          ],
+        };
+      }
+      try {
+        const agent = createMainAgent(this.env);
+        const result = await agent.generateResponse(query);
+        return { content: [{ type: "text" as const, text: result }] };
+      } catch (error) {
+        if (error instanceof InputGuardrailTripwireTriggered) {
+          return {
+            content: [{ type: "text" as const, text: POLICY_MESSAGE }],
+          };
+        }
+        throw error;
+      }
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Error searching documentation: ${error instanceof Error ? error.message : "Unknown error"}`,
+          },
+        ],
+      };
+    }
+  }
+
+  async callChatGPTDRSearch(
+    args: Record<string, any>,
+  ): Promise<{ results: ChatGPTDRSearchResult[] }> {
+    const { query, limit = 10 } = args;
+    try {
+      if (!this.env.OPENAI_API_KEY) {
+        return { results: [] };
+      }
+      const vectorStore = await getVectorStore(this.env);
+      const searchResults = await vectorStore.search(query, limit);
+      const results = searchResults.slice(0, limit).map((result) => {
+        const url =
+          result.metadata?.url ||
+          result.metadata?.sourceUrl ||
+          "https://platform.openai.com/docs";
+        return {
+          id: url,
+          title:
+            result.metadata?.title ||
+            result.metadata?.sourceTitle ||
+            "OpenAI Documentation",
+          text:
+            result.content.substring(0, 500) +
+            (result.content.length > 500 ? "..." : ""),
+          url,
+        };
+      });
+      const response = { results };
+      console.log(`search result: ${JSON.stringify(response)}`);
+      return response;
+    } catch (error) {
+      return { results: [] };
+    }
+  }
+
+  async callChatGPTDRFetch(
+    args: Record<string, any>,
+  ): Promise<ChatGPTDRFetchResult> {
+    const { id, limit = 1 } = args;
+    try {
+      if (!this.env.OPENAI_API_KEY) {
+        return {};
+      }
+      const vectorStore = await getVectorStore(this.env);
+      const results = await vectorStore.search(`url:${id}`, limit);
+      let matchingResult = results.find(
+        (result) =>
+          result.metadata?.url === id || result.metadata?.sourceUrl === id,
+      );
+      if (!matchingResult && results.length > 0) {
+        matchingResult = results[0];
+      }
+      if (!matchingResult) {
+        return {};
+      }
+      const result = {
+        id: id,
+        title:
+          matchingResult.metadata?.title ||
+          matchingResult.metadata?.sourceTitle ||
+          "OpenAI Documentation",
+        text: matchingResult.content,
+        url:
+          matchingResult.metadata?.url ||
+          matchingResult.metadata?.sourceUrl ||
+          id,
+        metadata: {
+          source: "openai-docs",
+          timestamp: new Date().toISOString(),
+          originalMetadata: matchingResult.metadata,
+        },
+      };
+      console.log(`fetch result: ${JSON.stringify(result)}`);
+      return result;
+    } catch (error: any) {
+      return { error: error.message };
+    }
+  }
+}
+
+export class JsonRpcHandler {
+  private mcpServer: MCPServer;
+
+  constructor(env: Env) {
+    this.mcpServer = new MCPServer(env);
+  }
+
+  async handleJsonRpcRequest(
+    request: JsonRpcRequest,
+    requestHeaders: Record<string, string>,
+  ): Promise<JsonRpcResponse> {
+    Logger.info(`MCP request: ${JSON.stringify(request, null, 2)}`);
+    // "user-agent": "openai-mcp/1.0.0"
+    const isChatGPTDeepResearch =
+      requestHeaders["user-agent"]?.includes("openai-mcp");
+    const requestId = request.id ?? null;
+    try {
+      if (request.jsonrpc !== "2.0") {
+        return this.createErrorResponse(
+          JSON_RPC_ERRORS.INVALID_REQUEST,
+          requestId,
+        );
+      }
+
+      switch (request.method) {
+        case "initialize":
+          return await this.handleInitialize(request);
+        case "notifications/initialized":
+          if (request.id === undefined || request.id === null) {
+            return { jsonrpc: "2.0", result: null, id: null };
+          }
+          return await this.handleInitialize(request);
+        case "list_tools":
+        case "tools/list":
+          return await this.handleListTools(request, { isChatGPTDeepResearch });
+        case "call_tool":
+        case "tools/call":
+          return await this.handleCallTool(request, { isChatGPTDeepResearch });
+        case "list_resources":
+        case "resources/list":
+          return await this.handleListResources(request);
+        case "read_resource":
+        case "resources/read":
+          return await this.handleReadResource(request);
+        default:
+          return this.createErrorResponse(
+            JSON_RPC_ERRORS.METHOD_NOT_FOUND,
+            requestId,
+          );
+      }
+    } catch (error) {
+      Logger.error("Error handling JSON-RPC request:", error);
+      return this.createErrorResponse(
+        {
+          code: JSON_RPC_ERRORS.INTERNAL_ERROR.code,
+          message: JSON_RPC_ERRORS.INTERNAL_ERROR.message,
+          data: error instanceof Error ? error.message : "Unknown error",
+        },
+        requestId,
+      );
+    }
+  }
+
+  private async handleInitialize(
+    request: JsonRpcRequest,
+  ): Promise<JsonRpcResponse> {
+    try {
+      const params = request.params || {};
+      if (!params.protocolVersion) {
+        return this.createErrorResponse(
+          {
+            code: JSON_RPC_ERRORS.INVALID_PARAMS.code,
+            message: "protocolVersion is required",
+          },
+          request.id ?? null,
+        );
+      }
+      return {
+        jsonrpc: "2.0",
+        result: {
+          protocolVersion: "2025-03-26",
+          capabilities: { tools: {}, resources: {} },
+          serverInfo: { name: "openai-sdk-mcp", version: "1.0.0" },
+          instructions:
+            "OpenAI SDK Knowledge MCP server providing expert-level answers about OpenAI API usage",
+        },
+        id: request.id ?? null,
+      };
+    } catch (error) {
+      Logger.error("Error during initialization:", error);
+      return this.createErrorResponse(
+        {
+          code: JSON_RPC_ERRORS.INTERNAL_ERROR.code,
+          message: "Failed to initialize",
+          data: error instanceof Error ? error.message : "Unknown error",
+        },
+        request.id ?? null,
+      );
+    }
+  }
+
+  private async handleListTools(
+    request: JsonRpcRequest,
+    { isChatGPTDeepResearch }: { isChatGPTDeepResearch: boolean },
+  ): Promise<JsonRpcResponse> {
+    const requestId = request.id ?? null;
+    try {
+      return {
+        jsonrpc: "2.0",
+        result: { tools: buildTools(isChatGPTDeepResearch) },
+        id: requestId,
+      };
+    } catch (error) {
+      Logger.error("Error listing tools:", error);
+      return this.createErrorResponse(
+        {
+          code: JSON_RPC_ERRORS.INTERNAL_ERROR.code,
+          message: "Failed to list tools",
+          data: error instanceof Error ? error.message : "Unknown error",
+        },
+        requestId,
+      );
+    }
+  }
+
+  private async handleCallTool(
+    request: JsonRpcRequest,
+    { isChatGPTDeepResearch }: { isChatGPTDeepResearch: boolean },
+  ): Promise<JsonRpcResponse> {
+    const requestId = request.id ?? null;
+    try {
+      if (!request.params || !request.params.name) {
+        return this.createErrorResponse(
+          {
+            code: JSON_RPC_ERRORS.INVALID_PARAMS.code,
+            message: "Tool name is required",
+          },
+          requestId,
+        );
+      }
+      const toolName = request.params.name;
+      const toolArgs = request.params.arguments || {};
+      let result;
+      switch (toolName) {
+        case TOOL_SEARCH_OPENAI_SDK_AND_DOCS:
+          result = await this.mcpServer.callSearch(toolArgs);
+          break;
+        case TOOL_CHATGPT_DR_SEARCH:
+          if (isChatGPTDeepResearch) {
+            result = await this.mcpServer.callChatGPTDRSearch(toolArgs);
+          } else {
+            result = { results: [] };
+          }
+          break;
+        case TOOL_CHATGPT_DR_FETCH:
+          if (isChatGPTDeepResearch) {
+            result = await this.mcpServer.callChatGPTDRFetch(toolArgs);
+          } else {
+            result = {};
+          }
+          break;
+        default:
+          return this.createErrorResponse(
+            {
+              code: JSON_RPC_ERRORS.METHOD_NOT_FOUND.code,
+              message: `Unknown tool: ${toolName}`,
+            },
+            requestId,
+          );
+      }
+      return { jsonrpc: "2.0", result, id: requestId };
+    } catch (error) {
+      Logger.error("Error calling tool:", error);
+      return this.createErrorResponse(
+        {
+          code: JSON_RPC_ERRORS.INTERNAL_ERROR.code,
+          message: "Failed to call tool",
+          data: error instanceof Error ? error.message : "Unknown error",
+        },
+        requestId,
+      );
+    }
+  }
+
+  private async handleListResources(
+    request: JsonRpcRequest,
+  ): Promise<JsonRpcResponse> {
+    const requestId = request.id ?? null;
+    return {
+      jsonrpc: "2.0",
+      result: { resources: [] },
+      id: requestId,
+    };
+  }
+
+  private async handleReadResource(
+    request: JsonRpcRequest,
+  ): Promise<JsonRpcResponse> {
+    const requestId = request.id ?? null;
+    return this.createErrorResponse(
+      {
+        code: JSON_RPC_ERRORS.METHOD_NOT_FOUND.code,
+        message: "Resource reading not implemented",
+      },
+      requestId,
+    );
+  }
+
+  private createErrorResponse(
+    error: JsonRpcError,
+    id: string | number | null,
+  ): JsonRpcResponse {
+    return { jsonrpc: "2.0", error, id };
+  }
+}
+
+// Types
+
+export interface JsonRpcRequest {
+  jsonrpc: "2.0";
+  method: string;
+  params?: any;
+  id?: string | number | null;
+}
+
+export interface JsonRpcResponse {
+  jsonrpc: "2.0";
+  result?: any;
+  error?: JsonRpcError;
+  id: string | number | null;
+}
+
+export interface JsonRpcError {
+  code: number;
+  message: string;
+  data?: any;
+}
+
+export const JSON_RPC_ERRORS = {
+  PARSE_ERROR: { code: -32700, message: "Parse error" },
+  INVALID_REQUEST: { code: -32600, message: "Invalid Request" },
+  METHOD_NOT_FOUND: { code: -32601, message: "Method not found" },
+  INVALID_PARAMS: { code: -32602, message: "Invalid params" },
+  INTERNAL_ERROR: { code: -32603, message: "Internal error" },
+} as const;
+
+export interface ChatGPTDRSearchResult {
+  id: string;
+  title: string;
+  text: string;
+  url: string;
+}
+
+export type ChatGPTDRFetchResult =
+  | {
+      id: string;
+      title: string;
+      text: string;
+      url: string;
+      metadata?: Record<string, any>;
+    }
+  | {};
+
+// Tools
+
+export const TOOL_SEARCH_OPENAI_SDK_AND_DOCS = "search_openai_sdk_and_docs";
+export const TOOL_CHATGPT_DR_SEARCH = "search";
+export const TOOL_CHATGPT_DR_FETCH = "fetch";
+export const DEFAULT_TOOLS = [
+  {
+    name: TOOL_SEARCH_OPENAI_SDK_AND_DOCS,
+    description:
+      "Help developers to use OpenAI API and SDKs. You can use this when you need help on how to call OpenAI's APIs (e.g., Responses API, FT, tools, and so on) and OpenAI Agents SDK. Include details such as programming language, features, requirements in the query to get better results.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description:
+            "Search query about OpenAI SDK code and documents. Be specific about details and include programming language, OpenAI features, module names, and keywords in the query to get better results.",
+        },
+        limit: {
+          type: "number",
+          description:
+            "Maximum number of search results to return. Higher values provide more comprehensive coverage but may include less relevant results. Recommended: 5-10 for focused searches, 15-20 for broader exploration.",
+          default: 10,
+        },
+      },
+      required: ["query"],
+    },
+  },
+];
+
+const CHATGPT_DEEP_RESEARCH_TOOLS = [
+  {
+    name: TOOL_CHATGPT_DR_SEARCH,
+    description:
+      "Search tool to act as a ChatGPT Deep Research connector. Use this when you need to search for information from the OpenAI knowledge base.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description:
+            "Search query to find relevant documents and information. Be specific about details and include programming language, OpenAI features, module names, and keywords in the query to get better results.",
+        },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: TOOL_CHATGPT_DR_FETCH,
+    description:
+      "Fetch tool to act as a ChatGPT Deep Research connector. Use this when you need to fetch the full content of a specific document by its ID.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description:
+            "Unique identifier of the document to fetch, obtained from search results.",
+        },
+      },
+      required: ["id"],
+    },
+  },
+];
+
+export function buildTools(isChatGPTDeepResearch: boolean) {
+  if (isChatGPTDeepResearch) {
+    return [...DEFAULT_TOOLS, ...CHATGPT_DEEP_RESEARCH_TOOLS];
+  }
+  return DEFAULT_TOOLS;
+}

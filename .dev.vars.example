@@ -1,0 +1,36 @@
+# Must-have: OPENAI_API_KEY, GITHUB_TOKEN
+
+# OpenAI API key
+OPENAI_API_KEY=sk-proj-...
+
+# GitHub API key for faster data pipeline
+GITHUB_TOKEN=github_pat_...
+
+# Application Configuration
+ENVIRONMENT=development
+LOG_LEVEL=debug
+
+# Rate Limiting Configuration
+GITHUB_RATE_LIMIT_PER_MINUTE=300
+FORUM_RATE_LIMIT_PER_MINUTE=100
+EMBEDDING_BATCH_SIZE=100
+COLLECTION_BATCH_SIZE=50
+MAX_RETRY_ATTEMPTS=3
+BASE_RETRY_DELAY_MS=1000
+
+# Cloudflare AI Gateway (optional)
+# CLOUDFLARE_ACCOUNT_ID = "..."
+# CLOUDFLARE_AI_GATEWAY_ID = "openai-sdk-knowledge-mcp-dev"
+
+# Admin Configuration
+ADMIN_EMAILS=foo@example.com,bar@example.com
+
+# Local Development Configuration
+# Set to 'true' to disable authentication for local development
+DISABLE_ADMIN_AUTH_FOR_LOCAL_DEV=true
+
+# true if you want to use Responses API's web search as fallback
+ENABLE_WEB_SEARCH_FALLBACK=false
+
+# Set this if you want to have link to Cloudflare dashboard from the admin page
+# CLOUDFLARE_ADMIN_DASHBOARD_URL=https://dash.cloudflare.com/{your-account-id}/ai/vectorize/openai-sdk-embeddings-dev

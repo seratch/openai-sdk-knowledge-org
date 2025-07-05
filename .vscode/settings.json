@@ -1,0 +1,24 @@
+{
+  // Use two spaces for indentation
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
+
+  // Format files on save using Prettier
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true
+  },
+
+  // ESLint validation
+  "eslint.validate": ["typescript", "typescriptreact", "javascript"],
+
+  // Use the workspace version of TypeScript
+  "typescript.tsdk": "node_modules/typescript/lib",
+
+  // Files settings
+  "files.eol": "\n",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true
+}

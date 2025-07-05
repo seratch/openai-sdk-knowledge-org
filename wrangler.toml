@@ -1,0 +1,110 @@
+# --------------------------
+# Basic information
+# --------------------------
+name = "openai-sdk-knowledge-mcp"
+main = "src/index.ts"
+compatibility_date = "2024-06-01"
+compatibility_flags = ["nodejs_compat"]
+assets = { directory = "public" }
+
+routes = [
+  { pattern = "openai-sdk-knowledge.org", custom_domain = true }
+]
+
+[env.development]
+name = "openai-sdk-knowledge-mcp-dev"
+[env.staging]
+name = "openai-sdk-knowledge-mcp-staging"
+[env.production]
+name = "openai-sdk-knowledge-mcp-prod"
+
+# --------------------------
+# Queues
+# --------------------------
+[[queues.producers]]
+binding = "JOB_QUEUE"
+queue = "data-pipeline-queue"
+[[env.production.queues.producers]]
+binding = "JOB_QUEUE"
+queue = "data-pipeline-queue"
+
+[[queues.consumers]]
+queue = "data-pipeline-queue"
+[[env.production.queues.consumers]]
+queue = "data-pipeline-queue"
+
+# --------------------------
+# D1 Databases
+# --------------------------
+[[d1_databases]]
+binding = "DB"
+database_name = "openai-sdk-knowledge-mcp-db"
+database_id = "placeholder"
+migrations_dir = "migrations"
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "openai-sdk-knowledge-mcp-db"
+# If you deploy this app on your own, replace this database id
+database_id = "3329fe67-5599-4e7c-87f3-8eec77010115"
+migrations_dir = "migrations"
+
+# --------------------------
+# Vectorize
+# --------------------------
+[[vectorize]]
+binding    = "VECTORIZE_DEV"   # available as env.VECTORIZE_DEV
+index_name = "openai-sdk-embeddings-dev"
+[[env.production.vectorize]]
+binding    = "VECTORIZE_DEV"   # available as env.VECTORIZE_DEV
+index_name = "openai-sdk-embeddings-dev"
+
+[[vectorize]]
+binding = "VECTORIZE_PROD"
+index_name = "openai-sdk-embeddings"
+[[env.production.vectorize]]
+binding = "VECTORIZE_PROD"
+index_name = "openai-sdk-embeddings"
+
+# --------------------------
+# Environment variables
+# --------------------------
+[vars]
+ENVIRONMENT = "development"
+LOG_LEVEL = "debug"
+# Fallback API key for local development - override with environment variable
+# OPENAI_API_KEY = "test-key-for-local-development"
+# Disable admin authentication for local development
+DISABLE_ADMIN_AUTH_FOR_LOCAL_DEV = "true"
+# Enable web search fallback by default
+ENABLE_WEB_SEARCH_FALLBACK = "true"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+LOG_LEVEL = "info"
+DISABLE_ADMIN_AUTH_FOR_LOCAL_DEV = "false"
+ENABLE_WEB_SEARCH_FALLBACK = "false"
+# wrangler secret put GOOGLE_CLIENT_ID --env production
+# wrangler secret put GOOGLE_CLIENT_SECRET --env production
+# wrangler secret put GOOGLE_JWT_SECRET --env production
+# wrangler secret put GOOGLE_REDIRECT_URI --env production
+# wrangler secret put OPENAI_API_KEY --env production
+# wrangler secret put GITHUB_TOKEN --env production
+# wrangler secret put ADMIN_EMAILS --env production
+# wrangler secret put CLOUDFLARE_ADMIN_DASHBOARD_URL --env production
+# wrangler secret put CLOUDFLARE_ACCOUNT_ID --env production
+# wrangler secret put CLOUDFLARE_AI_GATEWAY_ID --env production
+
+# Rate Limiting Configuration
+GITHUB_RATE_LIMIT_PER_MINUTE=300
+FORUM_RATE_LIMIT_PER_MINUTE=100
+EMBEDDING_BATCH_SIZE=100
+COLLECTION_BATCH_SIZE=50
+MAX_RETRY_ATTEMPTS=3
+BASE_RETRY_DELAY_MS=1000
+
+# --------------------------
+# Observability
+# --------------------------
+[env.production.observability]
+enabled = true
+head_sampling_rate = 0.1
