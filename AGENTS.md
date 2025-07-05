@@ -15,7 +15,7 @@ This file is a quick reference for AI coding agents such as **Codex** and **Code
  src/
   ├─ agents/          # AI agent implementations (RAG, translation, summarization, etc.)
   ├─ pipeline/        # Data collectors and processors (GitHub, forums, embeddings)
-  ├─ server/         # HTTP endpoints (MCP, web API) and middleware
+  ├─ server/          # HTTP endpoints (MCP, web API) and middleware
   ├─ storage/         # Vector store and database initialization
   ├─ utils/           # Shared utilities (logger, rate limiter)
   └─ index.ts         # Worker bootstrap
@@ -44,8 +44,8 @@ wrangler.toml        # Cloudflare Workers configuration
     - Run `npm run dev`
 2. **Target endpoints**:
     - Web UI: `http://localhost:8787`
-    - MCP server: `POST http://localhost:8787/mcp`
-    - Web API: `POST http://localhost:8787/api/query`
+    - MCP server: `POST http://localhost:8787/mcp` (requires an api token)
+    - Web API: `POST http://localhost:8787/api/query` (requires a logged in session)
 
 **Note:** Avoid running production scripts such as `npm run deploy:prod` or `npm run db:migrate:prod` from this environment.
 
