@@ -1,15 +1,3 @@
-## Pre-submission Checklist
-
-Before submitting this PR, please ensure you have completed all of the following:
-
-- [ ] **Type Check**: `npm run type-check` passes without errors
-- [ ] **Linting**: `npm run lint` passes without errors  
-- [ ] **Build**: `npm run build` succeeds
-- [ ] **Tests**: `npm run test` passes (if tests exist)
-- [ ] **Manual Testing**: Tested changes locally using `npm run dev`
-- [ ] **Documentation**: Updated relevant documentation for any API changes
-- [ ] **Environment**: Verified changes work with required environment variables
-
 ## Description
 
 Brief description of the changes made in this PR.
@@ -26,23 +14,18 @@ Please check the type of change your PR introduces:
 - [ ] ⚡ Performance improvement
 - [ ] 🧪 Test addition or improvement
 
-## Testing
+## Pre-submission Checklist
 
-Describe how you tested your changes:
+Before submitting this PR, please ensure you have completed all of the following:
 
-- [ ] Unit tests added/updated
-- [ ] Integration tests added/updated  
-- [ ] Manual testing completed
-- [ ] Tested with MCP server functionality
-- [ ] Tested with web application endpoints
-
-## Related Issues
-
-Link any related issues here (e.g., "Fixes #123" or "Related to #456").
+- [ ] **Linting**: `npm run lint` passes without errors
+- [ ] **Unit Testing**: `npm run test` passes (if tests exist)
+- [ ] **Manual Testing**: Tested changes locally using `npm run dev`
+- [ ] **Config Changes**: Verified changes work with required environment variables
 
 ## Screenshots (if applicable)
 
-For UI changes, include before/after screenshots.
+For UI changes, include before/after screenshots. Otherwise, skip this part.
 
 ## Additional Notes
 
