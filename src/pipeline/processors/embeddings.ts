@@ -4,7 +4,7 @@ import { Logger } from "@/logger";
 import { TextProcessorImpl } from "@/pipeline/processors/text-processor";
 import { TokenCounter } from "@/pipeline/token-counter";
 import { IdUtils } from "@/pipeline/processors/id-utils";
-import { buildOpenAIClientForDataPipeline } from "@/oepnai-client";
+import { buildOpenAIClientForDataPipeline } from "@/openai-client";
 
 export interface EmbeddedDocument {
   id: string;

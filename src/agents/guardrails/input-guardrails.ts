@@ -1,4 +1,4 @@
-import { buildOpenAIClientForOnlineAccess } from "@/oepnai-client";
+import { buildOpenAIClientForOnlineAccess } from "@/openai-client";
 import { InputGuardrail } from "@openai/agents";
 
 const POLICY_MESSAGE =

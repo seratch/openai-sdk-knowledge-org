@@ -2,7 +2,7 @@ import OpenAI from "openai";
 
 import { Logger } from "@/logger";
 import { RateLimiter } from "@/rate-limiter";
-import { buildOpenAIClientForDataPipeline } from "@/oepnai-client";
+import { buildOpenAIClientForDataPipeline } from "@/openai-client";
 import { Env } from "@/env";
 
 export interface CodeSnippet {

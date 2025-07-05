@@ -84,7 +84,7 @@ export class MainAgentImpl implements MainAgent {
   }
 
   async processQuery(query: string): Promise<MainAgentResponse> {
-    return await withTrace("OpenAI SDK Knwoledge MCP Agent", async () => {
+    return await withTrace("OpenAI SDK Knowledge MCP Agent", async () => {
       try {
         const translator = new TranslatorAgent(this.env);
         const translationResult = await translator.processQuery(query);

@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import { Logger } from "@/logger";
 import type { GitHubIssue } from "@/pipeline/collectors/github";
 import { RateLimiter } from "@/rate-limiter";
-import { buildOpenAIClientForDataPipeline } from "@/oepnai-client";
+import { buildOpenAIClientForDataPipeline } from "@/openai-client";
 import { Env } from "@/env";
 
 export interface IssueSummary {
