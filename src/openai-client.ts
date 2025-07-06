@@ -51,11 +51,3 @@ export function buildOpenAIModelProviderForOnlineAccess(env: {
   }
 }
 
-export function buildOpenAIModelProviderForDataPipeline(env: {
-  OPENAI_API_KEY: string;
-}): ModelProvider {
-  // Intentionally does not use AI Gateway to avoid being in the same rate limit policy with the online users
-  return new OpenAIProvider({
-    apiKey: env.OPENAI_API_KEY,
-  });
-}
