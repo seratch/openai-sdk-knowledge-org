@@ -5,7 +5,6 @@ export const mockOpenAIEmbeddingResponse = {
   ],
 };
 
-
 export const mockD1Database = {
   prepare: jest.fn().mockReturnValue({
     bind: jest.fn().mockReturnValue({
@@ -128,4 +127,3 @@ export const createMockJob = (overrides: any = {}) => ({
   errorMessage: null,
   ...overrides,
 });
-

@@ -296,15 +296,16 @@ export function renderAdminInterface(user?: AuthUser, env?: Env): string {
       <div class="header">
         <h1>Admin Dashboard</h1>
         <p>System monitoring and management</p>
-        ${user
-      ? `
+        ${
+          user
+            ? `
         <div style="position: absolute; top: 20px; right: 20px; color: rgba(255,255,255,0.9); font-size: 0.9em;">
             <span>Welcome, ${user.name} (${user.email})</span>
             <a href="/auth/logout" style="margin-left: 15px; color: rgba(255,255,255,0.7); text-decoration: none;">Logout</a>
         </div>
         `
-      : ""
-    }
+            : ""
+        }
     </div>
 
     <div class="nav">
@@ -1449,8 +1450,9 @@ export function renderWebInterface(user?: AuthUser): string {
             </footer>
         </div>
 
-      ${user
-      ? `
+      ${
+        user
+          ? `
         <div class="sidebar"><div class="stat-card">
           <h3> API Tokens </h3>
           <div id = "apiTokens" > Loading...</div>
@@ -1467,8 +1469,8 @@ export function renderWebInterface(user?: AuthUser): string {
         </div>
       </div>
     </div>`
-      : ``
-    }
+          : ``
+      }
 
     <!-- Token Display Modal -->
     <div id="tokenModal" class="token-modal">

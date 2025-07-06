@@ -45,4 +45,3 @@ export function validateRequest<T>(schema: z.ZodSchema<T>) {
     }
   };
 }
-

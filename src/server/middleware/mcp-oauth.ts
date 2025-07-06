@@ -19,7 +19,6 @@ export interface MCPClient {
   isActive: boolean;
 }
 
-
 export class MCPOAuth {
   private db: DrizzleDB;
 

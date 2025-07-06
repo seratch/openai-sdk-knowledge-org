@@ -1,4 +1,8 @@
-import { createContentModerationGuardrail, createTopicRelevanceGuardrail, POLICY_MESSAGE } from "@/agents/guardrails/input-guardrails";
+import {
+  createContentModerationGuardrail,
+  createTopicRelevanceGuardrail,
+  POLICY_MESSAGE,
+} from "@/agents/guardrails/input-guardrails";
 import { buildOpenAIClientForOnlineAccess } from "@/openai-client";
 
 jest.mock("@/openai-client", () => ({
@@ -32,7 +36,9 @@ describe("createContentModerationGuardrail", () => {
       context: {} as any,
     });
 
-    expect(mockOpenAI.moderations.create).toHaveBeenCalledWith({ input: "bad" });
+    expect(mockOpenAI.moderations.create).toHaveBeenCalledWith({
+      input: "bad",
+    });
     expect(result).toEqual({
       outputInfo: { reason: "harmful_content", categories: { hate: true } },
       tripwireTriggered: true,

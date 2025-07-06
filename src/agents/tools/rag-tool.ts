@@ -5,7 +5,6 @@ import type { VectorStore } from "@/storage/vector-store";
 import type { TranslatorAgent } from "@/agents/translator-agent";
 import { Logger } from "@/logger";
 
-
 export function createRAGSearchTool(
   vectorStore: VectorStore,
   translator: TranslatorAgent,
