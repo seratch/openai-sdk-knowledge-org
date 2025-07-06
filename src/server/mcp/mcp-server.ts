@@ -144,7 +144,7 @@ export class MCPServer {
         };
       });
       const response = { results };
-      console.log(`search result: ${JSON.stringify(response)}`);
+      Logger.lazyDebug(() => `search result: ${JSON.stringify(response)}`);
       return response;
     } catch (error) {
       return { results: [] };
@@ -197,7 +197,7 @@ export class MCPServer {
           originalMetadata: matchingResult.metadata,
         },
       };
-      console.log(`fetch result: ${JSON.stringify(result)}`);
+      Logger.lazyDebug(() => `fetch result: ${JSON.stringify(result)}`);
       return result;
     } catch (error: any) {
       return { error: error.message };
