@@ -1,3 +1,9 @@
+// MCP (Model Context Protocol) server implementation for OpenAI SDK knowledge
+// This provides a standard interface for AI models to access structured knowledge
+// MCP Protocol: https://modelcontextprotocol.io/
+// MCP Specification: https://spec.modelcontextprotocol.io/
+// ChatGPT Deep Research: https://platform.openai.com/docs/mcp
+
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import {
   CallToolRequestSchema,
@@ -13,29 +19,38 @@ import { Logger } from "@/logger";
 
 export const SERVER_NAME = "openai-sdk-mcp";
 
+// MCP Server class implementing the Model Context Protocol
+// Provides tools for searching OpenAI SDK knowledge and documentation
 export class MCPServer {
   private server: Server;
   private env: Env;
 
   constructor(env: Env) {
     this.env = env;
+
+    // Initialize MCP server with capabilities and metadata
     this.server = new Server(
       { name: SERVER_NAME, version: "1.0.0" },
       {
         capabilities: {
-          tools: {},
-          resources: {},
+          tools: {}, // Enable tool calling capability
+          resources: {}, // Enable resource access capability
         },
         instructions:
           "This MCP server helps developers to learn how to use OpenAI platform features and its SDKs. You can ask questions on how to call APIs, code examples using OpenAI Angents SDK for Python/TypeScript, and other questions on the platform features.",
       },
     );
+
+    // Initialize callback (currently no-op)
     this.server.oninitialized = () => {};
 
+    // Handle tool listing requests
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       return { tools: buildTools(false) };
     });
 
+    // Handle tool execution requests
+    // Route to appropriate tool implementation based on tool name
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
       if (!args) {
@@ -54,6 +69,8 @@ export class MCPServer {
     });
   }
 
+  // Standard MCP search tool implementation
+  // Uses RAG agent with web search fallback for comprehensive answers
   async callSearch({ query }: Record<string, any>): Promise<{
     content: Array<{ type: string; text: string }>;
   }> {
@@ -66,10 +83,12 @@ export class MCPServer {
         };
       }
       try {
+        // Use main agent which orchestrates RAG and web search
         const agent = createMainAgent(this.env);
         const result = await agent.generateResponse(query);
         return { content: [{ type: "text" as const, text: result }] };
       } catch (error) {
+        // Handle input guardrail violations
         if (error instanceof InputGuardrailTripwireTriggered) {
           return {
             content: [{ type: "text" as const, text: POLICY_MESSAGE }],
@@ -89,6 +108,9 @@ export class MCPServer {
     }
   }
 
+  // ChatGPT Deep Research search tool implementation
+  // Returns structured search results for research workflows
+  // ChatGPT Deep Research: https://platform.openai.com/docs/mcp
   async callChatGPTDRSearch(
     args: Record<string, any>,
   ): Promise<{ results: ChatGPTDRSearchResult[] }> {
@@ -97,8 +119,13 @@ export class MCPServer {
       if (!this.env.OPENAI_API_KEY) {
         return { results: [] };
       }
+
+      // Use vector store for semantic search
       const vectorStore = await getVectorStore(this.env);
       const searchResults = await vectorStore.search(query, limit);
+
+      // Format results for ChatGPT Deep Research connector
+      // Each result includes id, title, text snippet, and url
       const results = searchResults.slice(0, limit).map((result) => {
         const url =
           result.metadata?.url ||
@@ -124,6 +151,9 @@ export class MCPServer {
     }
   }
 
+  // ChatGPT Deep Research fetch tool implementation
+  // Retrieves full document content by ID for detailed analysis
+  // ChatGPT Deep Research: https://platform.openai.com/docs/mcp
   async callChatGPTDRFetch(
     args: Record<string, any>,
   ): Promise<ChatGPTDRFetchResult> {
@@ -132,8 +162,12 @@ export class MCPServer {
       if (!this.env.OPENAI_API_KEY) {
         return {};
       }
+
+      // Search for document by URL/ID
       const vectorStore = await getVectorStore(this.env);
       const results = await vectorStore.search(`url:${id}`, limit);
+
+      // Find matching document by URL
       let matchingResult = results.find(
         (result) =>
           result.metadata?.url === id || result.metadata?.sourceUrl === id,
@@ -144,6 +178,8 @@ export class MCPServer {
       if (!matchingResult) {
         return {};
       }
+
+      // Return full document content with metadata
       const result = {
         id: id,
         title:
@@ -169,6 +205,9 @@ export class MCPServer {
   }
 }
 
+// JSON-RPC handler for MCP protocol over HTTP
+// Handles the JSON-RPC 2.0 protocol used by MCP clients
+// JSON-RPC Specification: https://www.jsonrpc.org/specification
 export class JsonRpcHandler {
   private mcpServer: MCPServer;
 
@@ -176,16 +215,22 @@ export class JsonRpcHandler {
     this.mcpServer = new MCPServer(env);
   }
 
+  // Main JSON-RPC request handler
+  // Processes MCP protocol requests over HTTP transport
   async handleJsonRpcRequest(
     request: JsonRpcRequest,
     requestHeaders: Record<string, string>,
   ): Promise<JsonRpcResponse> {
     Logger.info(`MCP request: ${JSON.stringify(request, null, 2)}`);
+
+    // Detect ChatGPT Deep Research client by user-agent
     // "user-agent": "openai-mcp/1.0.0"
     const isChatGPTDeepResearch =
       requestHeaders["user-agent"]?.includes("openai-mcp");
     const requestId = request.id ?? null;
+
     try {
+      // Validate JSON-RPC 2.0 format
       if (request.jsonrpc !== "2.0") {
         return this.createErrorResponse(
           JSON_RPC_ERRORS.INVALID_REQUEST,
@@ -193,6 +238,7 @@ export class JsonRpcHandler {
         );
       }
 
+      // Route to appropriate handler based on method
       switch (request.method) {
         case "initialize":
           return await this.handleInitialize(request);

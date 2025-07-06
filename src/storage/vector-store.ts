@@ -1,4 +1,8 @@
-import type { VectorizeIndex, D1Database } from "@cloudflare/workers-types";
+// Vector store implementation using Cloudflare Vectorize
+// Provides semantic (vector) search
+// Cloudflare Vectorize: https://developers.cloudflare.com/vectorize/
+
+import type { VectorizeIndex } from "@cloudflare/workers-types";
 
 import type { EmbeddedDocument } from "@/pipeline/processors/embeddings";
 import { EmbeddingGeneratorImpl } from "@/pipeline/processors/embeddings";
@@ -6,12 +10,14 @@ import { Logger } from "@/logger";
 import { RateLimiter } from "@/rate-limiter";
 import { Env } from "@/env";
 
+// Search options for vector store queries
 export interface DocumentSearchOptions {
   limit?: number;
   threshold?: number;
   filter?: Record<string, any>;
 }
 
+// Search result from vector store
 export interface DocumentSearchResult {
   id: string;
   content: string;
@@ -19,8 +25,10 @@ export interface DocumentSearchResult {
   metadata: any;
 }
 
+// Singleton instance for vector store
 let vectorStore: VectorStore | null = null;
 
+// Factory function to get vector store instance
 export async function getVectorStore(env: Env): Promise<VectorStore> {
   if (!vectorStore) {
     vectorStore = new VectorStoreImpl(env);
@@ -28,6 +36,7 @@ export async function getVectorStore(env: Env): Promise<VectorStore> {
   return vectorStore;
 }
 
+// Vector store interface for document storage and retrieval
 export interface VectorStore {
   store(documents: EmbeddedDocument[]): Promise<void>;
   searchWithOptions(
@@ -37,19 +46,25 @@ export interface VectorStore {
   search(query: string, limit: number): Promise<DocumentSearchResult[]>;
 }
 
+// Vector store implementation using Cloudflare Vectorize and D1 Database
+// Provides high-performance vector search with hybrid search capabilities
 export class VectorStoreImpl implements VectorStore {
   private vectorizeRateLimiter: RateLimiter;
   private vectorize: VectorizeIndex;
-  private db: D1Database;
   private openaiApiKey: string;
 
   constructor(env: Env) {
     this.openaiApiKey = env.OPENAI_API_KEY;
+
+    // Use environment-specific Vectorize index
+    // Production vs development environments have separate indexes
     this.vectorize =
       env.ENVIRONMENT === "production"
         ? env.VECTORIZE_PROD!
         : env.VECTORIZE_DEV!;
-    this.db = env.DB;
+
+    // Rate limiter for Vectorize API calls
+    // Cloudflare Vectorize has rate limits that need to be respected
     this.vectorizeRateLimiter = new RateLimiter({
       requestsPerMinute: 100,
       retryAttempts: 5,
@@ -57,6 +72,8 @@ export class VectorStoreImpl implements VectorStore {
     });
   }
 
+  // Store embedded documents in Cloudflare Vectorize
+  // Documents are stored as vectors for semantic search
   async store(documents: EmbeddedDocument[]): Promise<void> {
     if (documents.length === 0) {
       Logger.lazyDebug(() => "No documents to store, skipping");
@@ -177,271 +194,5 @@ export class VectorStoreImpl implements VectorStore {
       Logger.error("Error storing in Vectorize:", error);
       throw error;
     }
-  }
-
-  private async getAllEmbeddings(): Promise<
-    Array<{ id: string; embedding: string; content: string; metadata: string }>
-  > {
-    const stmt = this.db.prepare(`
-      SELECT e.id, e.embedding, d.content, d.metadata
-      FROM embeddings e
-      JOIN documents d ON e.id = d.id
-    `);
-
-    const result = await stmt.all();
-    return result.results as Array<{
-      id: string;
-      embedding: string;
-      content: string;
-      metadata: string;
-    }>;
-  }
-
-  private async optimizedVectorSearch(
-    queryEmbedding: number[],
-    limit: number = 10,
-    threshold: number = 0.3,
-  ): Promise<DocumentSearchResult[]> {
-    const BATCH_SIZE = 50;
-    const MAX_CANDIDATES = 200;
-
-    let totalEmbeddings = 0;
-
-    try {
-      const countStmt = this.db.prepare(
-        `SELECT COUNT(*) as count FROM embeddings`,
-      );
-      const countResult = await countStmt.first();
-      totalEmbeddings = (countResult as any)?.count || 0;
-
-      if (totalEmbeddings === 0) {
-        Logger.lazyDebug(() => "No embeddings found in database");
-        return [];
-      }
-
-      Logger.lazyDebug(
-        () =>
-          `Processing ${Math.min(totalEmbeddings, MAX_CANDIDATES)} embeddings in batches of ${BATCH_SIZE}`,
-      );
-
-      const allResults: DocumentSearchResult[] = [];
-      const embeddingGen = new EmbeddingGeneratorImpl(this.openaiApiKey!);
-
-      const shouldSample = totalEmbeddings > MAX_CANDIDATES;
-      const sampleRate = shouldSample ? MAX_CANDIDATES / totalEmbeddings : 1;
-
-      let offset = 0;
-      let processedCount = 0;
-
-      while (offset < totalEmbeddings && processedCount < MAX_CANDIDATES) {
-        const batchStmt = this.db.prepare(`
-          SELECT e.id, e.embedding, d.content, d.metadata, e.created_at
-          FROM embeddings e
-          JOIN documents d ON e.id = d.id
-          ORDER BY e.created_at DESC
-          LIMIT ? OFFSET ?
-        `);
-
-        const batchResult = await batchStmt.bind(BATCH_SIZE, offset).all();
-        const batch = batchResult.results as Array<{
-          id: string;
-          embedding: string;
-          content: string;
-          metadata: string;
-          created_at: string;
-        }>;
-
-        if (batch.length === 0) break;
-
-        const batchToProcess = shouldSample
-          ? batch.filter(() => Math.random() < sampleRate)
-          : batch;
-
-        if (batchToProcess.length > 0) {
-          const embeddings = batchToProcess.map((row) =>
-            JSON.parse(row.embedding),
-          );
-          const similarities = embeddingGen.calculateSimilarity(
-            queryEmbedding,
-            embeddings,
-          );
-
-          const batchResults = batchToProcess
-            .map((row, index) => ({
-              id: row.id,
-              content: row.content || "",
-              score: similarities[index],
-              metadata: row.metadata ? JSON.parse(row.metadata) : {},
-            }))
-            .filter((result) => result.score >= threshold);
-
-          allResults.push(...batchResults);
-          processedCount += batchToProcess.length;
-        }
-
-        offset += BATCH_SIZE;
-
-        if (allResults.length >= limit * 3) {
-          Logger.lazyDebug(
-            () => `Early termination: found ${allResults.length} candidates`,
-          );
-          break;
-        }
-      }
-
-      const finalResults = allResults
-        .sort((a, b) => b.score - a.score)
-        .slice(0, limit);
-
-      Logger.lazyDebug(
-        () =>
-          `Optimized search processed ${processedCount}/${totalEmbeddings} embeddings, found ${finalResults.length} results`,
-      );
-      return finalResults;
-    } catch (error) {
-      Logger.error("Error in optimized vector search:", error);
-      if (totalEmbeddings < 1000) {
-        Logger.lazyDebug(
-          () => "Falling back to original search method for small dataset",
-        );
-        return this.fallbackVectorSearch(queryEmbedding, limit, threshold);
-      }
-      throw error;
-    }
-  }
-
-  private async fallbackVectorSearch(
-    queryEmbedding: number[],
-    limit: number,
-    threshold: number,
-  ): Promise<DocumentSearchResult[]> {
-    const allEmbeddings = await this.getAllEmbeddings();
-
-    if (allEmbeddings.length === 0) {
-      return [];
-    }
-
-    const embeddingGen = new EmbeddingGeneratorImpl(this.openaiApiKey!);
-    const embeddings = allEmbeddings.map((row) => JSON.parse(row.embedding));
-    const similarities = embeddingGen.calculateSimilarity(
-      queryEmbedding,
-      embeddings,
-    );
-
-    return allEmbeddings
-      .map((row, index) => ({
-        id: row.id,
-        content: row.content || "",
-        score: similarities[index],
-        metadata: row.metadata ? JSON.parse(row.metadata) : {},
-      }))
-      .filter((result) => result.score >= threshold)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
-  }
-
-  private countOccurrences(text: string, term: string): number {
-    const regex = new RegExp(
-      `\\b${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
-      "gi",
-    );
-    const matches = text.match(regex);
-    return matches ? matches.length : 0;
-  }
-
-  private async calculateDocumentFrequencies(
-    keywords: string[],
-    documents: any[],
-  ): Promise<Map<string, number>> {
-    const frequencies = new Map<string, number>();
-
-    for (const keyword of keywords) {
-      const keywordLower = keyword.toLowerCase();
-      let documentCount = 0;
-
-      for (const doc of documents) {
-        const content = (doc.content || "").toLowerCase();
-        if (this.countOccurrences(content, keywordLower) > 0) {
-          documentCount++;
-        }
-      }
-
-      frequencies.set(keywordLower, Math.max(1, documentCount));
-    }
-
-    return frequencies;
-  }
-
-  private mergeMultipleKeywordResults(
-    parallelResults: Array<{
-      results: DocumentSearchResult[];
-      method: string;
-      confidence: number;
-    }>,
-  ): DocumentSearchResult[] {
-    const resultMap = new Map<string, DocumentSearchResult>();
-
-    const methodWeights = {
-      llm: 0.4,
-      regex: 0.3,
-      ngram: 0.3,
-      fallback: 0.2,
-    };
-
-    for (const { results, method, confidence } of parallelResults) {
-      const weight =
-        (methodWeights[method as keyof typeof methodWeights] || 0.2) *
-        confidence;
-
-      for (const result of results) {
-        const existing = resultMap.get(result.id);
-        const weightedScore = result.score * weight;
-
-        if (existing) {
-          existing.score =
-            Math.max(existing.score, weightedScore) + weightedScore * 0.1;
-        } else {
-          resultMap.set(result.id, {
-            ...result,
-            score: weightedScore,
-          });
-        }
-      }
-    }
-
-    return Array.from(resultMap.values())
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 8);
-  }
-
-  private mergeResults(
-    vectorResults: DocumentSearchResult[],
-    keywordResults: DocumentSearchResult[],
-  ): DocumentSearchResult[] {
-    const resultMap = new Map<string, DocumentSearchResult>();
-
-    vectorResults.forEach((result) => {
-      resultMap.set(result.id, {
-        ...result,
-        score: result.score * 0.7,
-      });
-    });
-
-    keywordResults.forEach((result) => {
-      const existing = resultMap.get(result.id);
-      if (existing) {
-        existing.score =
-          Math.max(existing.score, result.score * 0.3) + result.score * 0.1;
-      } else {
-        resultMap.set(result.id, {
-          ...result,
-          score: result.score * 0.3,
-        });
-      }
-    });
-
-    return Array.from(resultMap.values())
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 10);
   }
 }

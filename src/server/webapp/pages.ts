@@ -1443,6 +1443,10 @@ export function renderWebInterface(user?: AuthUser): string {
                 </div>
                 <div id="results"></div>
             </div>
+            <footer style="text-align:center;margin:40px 0 20px;font-size:0.9rem;color:#dce9f5;">
+              Made with <span style="color:#dce9f5">❤️</span> by <a href="https://github.com/seratch" target="_blank" style="color:#dce9f5;">@seratch</a> —
+              <a href="https://github.com/seratch/openai-sdk-knowledge-org/" target="_blank" style="color:#dce9f5;">GitHub repo</a>
+            </footer>
         </div>
 
       ${user
