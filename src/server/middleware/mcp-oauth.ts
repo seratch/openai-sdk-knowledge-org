@@ -19,14 +19,6 @@ export interface MCPClient {
   isActive: boolean;
 }
 
-export interface MCPAuthorizationCode {
-  code: string;
-  client_id: string;
-  user_email: string;
-  redirect_uri: string;
-  scopes: string[];
-  expires_at: string;
-}
 
 export class MCPOAuth {
   private db: DrizzleDB;

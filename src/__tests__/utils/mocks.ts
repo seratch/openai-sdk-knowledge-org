@@ -5,18 +5,6 @@ export const mockOpenAIEmbeddingResponse = {
   ],
 };
 
-export const mockOpenAIChatResponse = {
-  output: [
-    {
-      content: [
-        {
-          text: "This is a mocked response from OpenAI GPT-4.",
-        },
-      ],
-    },
-  ],
-  output_text: "This is a mocked response from OpenAI GPT-4.",
-};
 
 export const mockD1Database = {
   prepare: jest.fn().mockReturnValue({
@@ -141,31 +129,3 @@ export const createMockJob = (overrides: any = {}) => ({
   ...overrides,
 });
 
-export const createMockWorkItem = (overrides: any = {}) => ({
-  id: 1,
-  collectionRunId: 1,
-  itemType: "github_issue",
-  itemId: "test-item-1",
-  status: "pending",
-  sourceData: '{"title":"Test Issue","body":"Test content"}',
-  retryCount: 0,
-  createdAt: "2023-01-01T00:00:00Z",
-  processedAt: null,
-  processedData: null,
-  errorMessage: null,
-  ...overrides,
-});
-
-export const mockJobQueueService = {
-  createJob: jest.fn().mockResolvedValue(1),
-  getNextJobs: jest.fn().mockResolvedValue([]),
-  markJobRunning: jest.fn().mockResolvedValue(undefined),
-  markJobCompleted: jest.fn().mockResolvedValue(undefined),
-  markJobFailed: jest.fn().mockResolvedValue(undefined),
-  createWorkItems: jest.fn().mockResolvedValue(undefined),
-  getWorkItem: jest.fn().mockResolvedValue(null),
-  markWorkItemProcessing: jest.fn().mockResolvedValue(undefined),
-  markWorkItemCompleted: jest.fn().mockResolvedValue(undefined),
-  markWorkItemFailed: jest.fn().mockResolvedValue(undefined),
-  getRunningJobs: jest.fn().mockResolvedValue([]),
-};
