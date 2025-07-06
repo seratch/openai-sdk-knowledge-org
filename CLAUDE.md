@@ -52,7 +52,7 @@ This is a **Cloudflare Workers** application that provides an **OpenAI SDK Knowl
 #### 2. Agent System (`src/agents/`)
 - **Main Agent** (`main-agent.ts`): Orchestrates RAG and web search agents
 - **RAG Agent** (`rag-agent.ts`): Handles knowledge base queries
-- **Web Search Agent** (`web-sesarch-agent.ts`): Fallback web search capability
+- **Web Search Agent** (`web-search-agent.ts`): Fallback web search capability
 - **Translation Agent** (`translator-agent.ts`): Multi-language support
 - **Specialized Agents**: Forum summarizer and code snippet generator
 

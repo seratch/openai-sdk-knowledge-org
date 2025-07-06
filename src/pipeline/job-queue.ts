@@ -224,7 +224,7 @@ export class JobQueue {
         createdSoFar: createdIds.length,
         error: errorMessage,
       });
-      console.error(`❌ STDERR: Failed to create work items: ${errorMessage}`, {
+      Logger.error(`❌ STDERR: Failed to create work items: ${errorMessage}`, {
         totalItems: items.length,
         createdSoFar: createdIds.length,
       });

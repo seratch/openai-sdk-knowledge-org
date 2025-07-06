@@ -12,9 +12,10 @@ import {
 import type { Env } from "@/env";
 import { POLICY_MESSAGE } from "@/agents/guardrails/input-guardrails";
 import { createRAGAgent } from "@/agents/rag-agent";
-import { createWebSearchAgent } from "@/agents/web-sesarch-agent";
+import { createWebSearchAgent } from "@/agents/web-search-agent";
 import { TranslatorAgent } from "@/agents/translator-agent";
 import { createRAGResultEvaluatorAgent } from "@/agents/rag-result-evaluator-agent";
+import { Logger } from "@/logger";
 
 // Response interface for main agent queries
 export interface MainAgentResponse {
@@ -78,7 +79,7 @@ export class MainAgentImpl implements MainAgent {
       const result = evaluation.finalOutput?.trim().toUpperCase();
       return result === "INSUFFICIENT";
     } catch (error) {
-      console.warn(
+      Logger.warn(
         "Agent evaluation failed, falling back to string matching:",
         error,
       );
@@ -124,7 +125,7 @@ export class MainAgentImpl implements MainAgent {
               agentResponse.finalOutput || "",
             ))
           ) {
-            console.log("RAG results insufficient, falling back to web search");
+            Logger.info("RAG results insufficient, falling back to web search");
             const webSearchAgent = await this.getWebSearchAgent();
             agentResponse = await run(
               webSearchAgent,
@@ -149,7 +150,7 @@ export class MainAgentImpl implements MainAgent {
           }
 
           // Step 4: If RAG fails, fallback to web search
-          console.log("RAG agent failed, falling back to web search:", error);
+          Logger.warn("RAG agent failed, falling back to web search:", error);
           const enableWebSearchFallback =
             this.env.ENABLE_WEB_SEARCH_FALLBACK !== "false";
           if (enableWebSearchFallback) {

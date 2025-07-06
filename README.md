@@ -92,6 +92,15 @@ src/
 
 <img width="600" src="./public/images/readme_architecture.png" />
 
+### Agents
+
+This repository includes several specialized agents built with the OpenAI Agents SDK:
+
+- `main-agent.ts` – orchestrates RAG, web search, and translation capabilities
+- `rag-agent.ts` – searches the internal documentation knowledge base
+- `web-search-agent.ts` – performs web searches when the RAG agent cannot answer
+- `translator-agent.ts` – translates user queries and agent responses
+
 ## License
 
 MIT
