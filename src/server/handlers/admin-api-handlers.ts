@@ -377,36 +377,3 @@ export const adminApiGetJobQueueHandler = async (
   }
 };
 
-export const adminApiGetMcpClientsHandler = async (c: Context) => {
-  try {
-    const status = c.req.query("status") || "";
-    const limit = parseInt(c.req.query("limit") || "100");
-
-    const db = getDrizzleDB(c.env.DB);
-    const jobs = await db
-      .select()
-      .from(Schema.jobQueue)
-      .leftJoin(
-        Schema.collectionRuns,
-        eq(Schema.jobQueue.collectionRunId, Schema.collectionRuns.id),
-      )
-      .orderBy(desc(Schema.jobQueue.priority), asc(Schema.jobQueue.createdAt))
-      .limit(limit)
-      .all();
-
-    const stats = await db
-      .select({ status: Schema.jobQueue.status, count: count() })
-      .from(Schema.jobQueue)
-      .groupBy(Schema.jobQueue.status)
-      .all();
-
-    return c.json({
-      jobs: jobs || [],
-      stats: stats || [],
-      filters: { status, limit },
-    });
-  } catch (error) {
-    Logger.error("Error fetching job queue:", error);
-    return c.json({ error: "Failed to fetch job queue" }, 500);
-  }
-};

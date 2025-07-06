@@ -46,36 +46,3 @@ export function validateRequest<T>(schema: z.ZodSchema<T>) {
   };
 }
 
-export function validateQuery() {
-  return async (c: Context, next: Next) => {
-    const query = c.req.query("q");
-    const limit = c.req.query("limit");
-    const threshold = c.req.query("threshold");
-
-    if (!query || query.length === 0) {
-      return c.json({ error: 'Query parameter "q" is required' }, 400);
-    }
-
-    if (query.length > 500) {
-      return c.json({ error: "Query too long (max 500 characters)" }, 400);
-    }
-
-    if (
-      limit &&
-      (isNaN(Number(limit)) || Number(limit) < 1 || Number(limit) > 100)
-    ) {
-      return c.json({ error: "Limit must be between 1 and 100" }, 400);
-    }
-
-    if (
-      threshold &&
-      (isNaN(Number(threshold)) ||
-        Number(threshold) < 0 ||
-        Number(threshold) > 1)
-    ) {
-      return c.json({ error: "Threshold must be between 0 and 1" }, 400);
-    }
-
-    await next();
-  };
-}

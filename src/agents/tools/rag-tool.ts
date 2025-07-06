@@ -5,22 +5,6 @@ import type { VectorStore } from "@/storage/vector-store";
 import type { TranslatorAgent } from "@/agents/translator-agent";
 import { Logger } from "@/logger";
 
-export interface RAGSearchParams {
-  query: string;
-  language?: string;
-  maxResults?: number;
-}
-
-export interface RAGSearchResult {
-  success: boolean;
-  context: string;
-  sources: Array<{
-    title: string;
-    url: string;
-    content: string;
-  }>;
-  message?: string;
-}
 
 export function createRAGSearchTool(
   vectorStore: VectorStore,
