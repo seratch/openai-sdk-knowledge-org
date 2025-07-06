@@ -183,10 +183,10 @@ export const adminApiGetCollectStatusHandler = async (c: Context) => {
           totalEstimated: run.totalEstimated || 0,
           percentComplete: run.totalEstimated
             ? Math.round(
-              ((Number(run.documentsProcessed) || 0) /
-                Number(run.totalEstimated)) *
-              100,
-            )
+                ((Number(run.documentsProcessed) || 0) /
+                  Number(run.totalEstimated)) *
+                  100,
+              )
             : 0,
         },
         timestamp: new Date().toISOString(),
@@ -328,10 +328,10 @@ export const adminApiGetCollectionRunDetailsHandler = async (c: Context) => {
         totalEstimated: run.totalEstimated || 0,
         percentComplete: run.totalEstimated
           ? Math.round(
-            ((Number(run.documentsProcessed) || 0) /
-              Number(run.totalEstimated)) *
-            100,
-          )
+              ((Number(run.documentsProcessed) || 0) /
+                Number(run.totalEstimated)) *
+                100,
+            )
           : 0,
       },
     });

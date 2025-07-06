@@ -1,3 +1,7 @@
+// Main agent implementation using OpenAI Agents SDK
+// Orchestrates RAG search, web search fallback, and translation
+// OpenAI Agents SDK: https://github.com/openai/openai-agents-js
+
 import {
   Agent,
   run,
@@ -12,6 +16,7 @@ import { createWebSearchAgent } from "@/agents/web-sesarch-agent";
 import { TranslatorAgent } from "@/agents/translator-agent";
 import { createRAGResultEvaluatorAgent } from "@/agents/rag-result-evaluator-agent";
 
+// Response interface for main agent queries
 export interface MainAgentResponse {
   questionLanguage: string;
   content: string;
@@ -20,15 +25,18 @@ export interface MainAgentResponse {
   timestamp: string;
 }
 
+// Main agent interface for processing queries
 export interface MainAgent {
   processQuery(query: string): Promise<MainAgentResponse>;
   generateResponse(prompt: string): Promise<string>;
 }
 
+// Factory function to create main agent instance
 export function createMainAgent(env: Env): MainAgent {
   return new MainAgentImpl(env);
 }
 
+// Main agent implementation orchestrating multiple specialized agents
 export class MainAgentImpl implements MainAgent {
   private env: Env;
   private ragAgent: Agent | null = null;
@@ -38,6 +46,7 @@ export class MainAgentImpl implements MainAgent {
     this.env = env;
   }
 
+  // Lazy initialization of RAG agent
   private async getRAGAgent(): Promise<Agent> {
     if (!this.ragAgent) {
       this.ragAgent = await createRAGAgent(this.env);
@@ -45,6 +54,7 @@ export class MainAgentImpl implements MainAgent {
     return this.ragAgent!;
   }
 
+  // Lazy initialization of web search agent
   private async getWebSearchAgent(): Promise<Agent> {
     if (!this.webSearchAgent) {
       this.webSearchAgent = await createWebSearchAgent(this.env);
@@ -52,11 +62,14 @@ export class MainAgentImpl implements MainAgent {
     return this.webSearchAgent!;
   }
 
+  // Evaluate if RAG search result is insufficient and requires web search fallback
   private async isRAGResultInsufficient(response: string): Promise<boolean> {
     try {
       if (!this.env.OPENAI_API_KEY) {
         throw new Error("OpenAI API key not configured");
       }
+
+      // Use dedicated evaluator agent to assess response quality
       const resultEvaluator = await createRAGResultEvaluatorAgent(this.env);
       const evaluation = await run(
         resultEvaluator,
@@ -69,6 +82,8 @@ export class MainAgentImpl implements MainAgent {
         "Agent evaluation failed, falling back to string matching:",
         error,
       );
+
+      // Fallback to string matching for insufficient response indicators
       const insufficientIndicators = [
         "No relevant information found",
         "low-quality or fragmented",
@@ -83,9 +98,13 @@ export class MainAgentImpl implements MainAgent {
     }
   }
 
+  // Main query processing method with tracing, translation, and fallback logic
   async processQuery(query: string): Promise<MainAgentResponse> {
+    // Use OpenAI Agents SDK tracing for observability
+    // withTrace creates a trace span for monitoring and debugging
     return await withTrace("OpenAI SDK Knowledge MCP Agent", async () => {
       try {
+        // Step 1: Translate query to English if needed
         const translator = new TranslatorAgent(this.env);
         const translationResult = await translator.processQuery(query);
         const englishQuery = translationResult.translatedText;
@@ -94,9 +113,11 @@ export class MainAgentImpl implements MainAgent {
         let usedWebSearch = false;
 
         try {
+          // Step 2: Try RAG search first
           const ragAgent = await this.getRAGAgent();
           agentResponse = await run(ragAgent, englishQuery);
 
+          // Step 3: Check if RAG result is insufficient, fallback to web search
           if (
             this.env.ENABLE_WEB_SEARCH_FALLBACK !== "false" &&
             (await this.isRAGResultInsufficient(
@@ -112,6 +133,7 @@ export class MainAgentImpl implements MainAgent {
             usedWebSearch = true;
           }
         } catch (error) {
+          // Handle input guardrail violations
           if (error instanceof InputGuardrailTripwireTriggered) {
             const translatedResponse = await translator.processResponse(
               POLICY_MESSAGE,
@@ -126,6 +148,7 @@ export class MainAgentImpl implements MainAgent {
             };
           }
 
+          // Step 4: If RAG fails, fallback to web search
           console.log("RAG agent failed, falling back to web search:", error);
           const enableWebSearchFallback =
             this.env.ENABLE_WEB_SEARCH_FALLBACK !== "false";
@@ -141,6 +164,7 @@ export class MainAgentImpl implements MainAgent {
           }
         }
 
+        // Step 5: Translate response back to original language if needed
         let translatedResponse = agentResponse.finalOutput || "";
         if (translationResult.originalLanguage !== "en") {
           const translator = new TranslatorAgent(this.env);
@@ -169,6 +193,7 @@ export class MainAgentImpl implements MainAgent {
     });
   }
 
+  // Simplified interface for generating text responses
   async generateResponse(prompt: string): Promise<string> {
     const response = await this.processQuery(prompt);
     return response.content;

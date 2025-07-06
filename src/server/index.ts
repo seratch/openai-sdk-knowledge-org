@@ -1,3 +1,7 @@
+// Main Hono web application setup and routing
+// Hono is a lightweight, fast web framework for Cloudflare Workers
+// Documentation: https://hono.dev/
+
 import { Context, Hono } from "hono";
 import { errorHandler } from "./middleware/error-handler";
 import { rateLimit } from "./middleware/rate-limit";
@@ -59,15 +63,28 @@ import {
   mcpWellKnownHandler,
 } from "./handlers/mcp-handlers";
 
+// Main Hono application instance with environment bindings
+// Hono Getting Started: https://hono.dev/getting-started/cloudflare-workers
+// Hono Routing: https://hono.dev/api/routing
 export const app = new Hono<{ Bindings: Env }>();
 
+// Global middleware setup
+// Hono Middleware: https://hono.dev/middleware/builtin/logger
+
+// Built-in Hono logger middleware for request/response logging
 app.use("*", logger());
+// Custom error handling middleware
 app.use("*", errorHandler());
 
+// OpenAI Agents SDK setup middleware
+// Configure tracing and model provider for each request
 app.use("*", async (c: Context<{ Bindings: Env }>, next) => {
+  // Enable OpenAI Agents SDK tracing for observability
   setDefaultOpenAITracingExporter();
   setTracingExportApiKey(c.env.OPENAI_API_KEY);
 
+  // Use Cloudflare AI Gateway if configured, otherwise direct OpenAI access
+  // AI Gateway: https://developers.cloudflare.com/ai-gateway/
   if (c.env.CLOUDFLARE_ACCOUNT_ID && c.env.CLOUDFLARE_AI_GATEWAY_ID) {
     setDefaultModelProvider(buildOpenAIModelProviderForOnlineAccess(c.env));
   } else {
@@ -76,6 +93,8 @@ app.use("*", async (c: Context<{ Bindings: Env }>, next) => {
   await next();
 });
 
+// CORS middleware for cross-origin requests
+// Hono CORS: https://hono.dev/middleware/builtin/cors
 app.use(
   "*",
   cors({
@@ -91,9 +110,12 @@ app.use(
   }),
 );
 
+// Security headers and logging configuration middleware
 app.use("*", async (c: Context<{ Bindings: Env }>, next) => {
   const logLevel = c.env.LOG_LEVEL || "info";
   Logger.setLogLevel(logLevel as any);
+
+  // Security headers to protect against common attacks
   c.header("X-Content-Type-Options", "nosniff");
   c.header("X-Frame-Options", "DENY");
   c.header("X-XSS-Protection", "1; mode=block");
@@ -101,6 +123,7 @@ app.use("*", async (c: Context<{ Bindings: Env }>, next) => {
   await next();
 });
 
+// Health check endpoint
 app.get("/health", healthHandler);
 
 // --------------------
@@ -117,7 +140,8 @@ app.get("/mypage", requireAuth, myPageHandler);
 app.get("/admin", requireAdminAuth, adminPageHandler);
 
 // --------------------
-// Auth routes
+// Authentication routes
+// Google OAuth integration for user authentication
 // --------------------
 
 app.get("/auth/login", authLoginHandler);
@@ -125,7 +149,9 @@ app.get("/auth/callback", authCallbackHandler);
 app.get("/auth/logout", authLogoutHandler);
 
 // --------------------
-// MCP routes
+// MCP (Model Context Protocol) routes
+// OAuth 2.0 server implementation for MCP client authorization
+// MCP OAuth: https://spec.modelcontextprotocol.io/specification/authentication/
 // --------------------
 
 app.get("/.well-known/oauth-authorization-server", mcpWellKnownHandler);
@@ -140,21 +166,26 @@ app.post("/mcp/oauth/register", mcpOAuthRegisterHandler);
 
 // --------------------
 // API endpoint routes
+// Sub-application for REST API endpoints with separate middleware
 // --------------------
 
 export const api = new Hono();
 
+// API-specific middleware
 api.use("*", errorHandler());
-api.use("*", rateLimit(60));
+api.use("*", rateLimit(60)); // 60 requests per minute rate limit
 
+// Public API endpoints
 api.post("/query", validateRequest(querySchema), webappQueryHandler);
 
+// User token management endpoints
 api.get("/tokens", requireAuth, getTokensHandler);
 api.post("/tokens", requireAuth, tokenCreationHandler);
 api.delete("/tokens/:tokenId", requireAuth, tokenDeletionHandler);
 
 // --------------------
 // Admin API endpoint routes
+// Administrative endpoints for data collection and monitoring
 // --------------------
 
 api.post(
@@ -186,6 +217,7 @@ api.get(
 
 api.get("/admin/job-queue", requireAdminAuth, adminApiGetJobQueueHandler);
 
-// Registering api routes to the root one
+// Mount API sub-application under /api prefix
+// Hono Sub App: https://hono.dev/api/routing#sub-app
 // Add /api/* routes before this line
 app.route("/api", api);
