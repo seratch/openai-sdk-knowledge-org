@@ -54,7 +54,7 @@ This is a **Cloudflare Workers** application that provides an **OpenAI SDK Knowl
 - **RAG Agent** (`rag-agent.ts`): Handles knowledge base queries
 - **Web Search Agent** (`web-sesarch-agent.ts`): Fallback web search capability
 - **Translation Agent** (`translator-agent.ts`): Multi-language support
-- **Specialized Agents**: Forum summarizer, keyword extractor, code snippet generator
+- **Specialized Agents**: Forum summarizer and code snippet generator
 
 -#### 3. MCP Server Implementation (`src/server/mcp/`)
 - **MCP Server** (`http-transport.ts`): MCP protocol and HTTP transport
