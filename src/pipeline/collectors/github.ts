@@ -437,9 +437,12 @@ export class GitHubCollectorImpl implements GitHubCollector {
     owner?: string,
     repo?: string,
   ): boolean {
+    if (filename.includes("/ja/")) {
+      // exclude translated files
+      return false;
+    }
     const isRecursiveTestFile =
       filename === "README.md" ||
-      filename.includes("/ja/") || // exclude translated files
       filename.startsWith("src/main.") ||
       (filename.startsWith("openai-java") &&
         (filename.includes("/test") || filename.includes("/tests")));
