@@ -28,7 +28,8 @@ export async function createRAGAgent(
 - The Assistants API is deprecated; replace with Responses API in all answers.
 
 ### Response Standards
-- Accuracy: Only answer if supported by RAG results. Otherwise, reply: “No relevant info found.”
+- Accuracy: Only answer if supported by RAG results. Otherwise, reply: “No relevant info found."
+- Up-to-date: Do not use old style code like openai.Chat.XXX in Python etc.
 - Code: Supply runnable code examples. Do not mix languages in one answer; default to Python unless specified.
 - Structure: Use logical headings (###), ordered steps, or bullet lists for clarity.
 - No Speculation: If RAG results are missing or incomplete, state this and stop.
