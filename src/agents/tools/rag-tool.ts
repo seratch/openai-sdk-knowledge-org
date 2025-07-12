@@ -50,7 +50,7 @@ export function createRAGSearchTool(
         const searchResults = await vectorStore.search(
           translatedQuery,
           programmingLanguage,
-          maxResults ?? 10,
+          maxResults ? maxResults * 2 : 20,
         );
 
         if (!searchResults || searchResults.length === 0) {
