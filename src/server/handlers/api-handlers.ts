@@ -24,7 +24,7 @@ export const webappQueryHandler = async (c: Context<{ Bindings: Env }>) => {
     let agentResult: MainAgentResponse;
     try {
       const agent = createMainAgent(c.env);
-      agentResult = await agent.processQuery(query);
+      agentResult = await agent.processQuery(query, undefined);
     } catch (error) {
       if (error instanceof InputGuardrailTripwireTriggered) {
         return c.json({ error: POLICY_MESSAGE }, 400);

@@ -28,8 +28,14 @@ export interface MainAgentResponse {
 
 // Main agent interface for processing queries
 export interface MainAgent {
-  processQuery(query: string): Promise<MainAgentResponse>;
-  generateResponse(prompt: string): Promise<string>;
+  processQuery(
+    query: string,
+    language: string | undefined,
+  ): Promise<MainAgentResponse>;
+  generateResponse(
+    prompt: string,
+    language: string | undefined,
+  ): Promise<string>;
 }
 
 // Factory function to create main agent instance
@@ -48,9 +54,11 @@ export class MainAgentImpl implements MainAgent {
   }
 
   // Lazy initialization of RAG agent
-  private async getRAGAgent(): Promise<Agent> {
+  private async getRAGAgent(
+    programmingLanguage: string | undefined,
+  ): Promise<Agent> {
     if (!this.ragAgent) {
-      this.ragAgent = await createRAGAgent(this.env);
+      this.ragAgent = await createRAGAgent(this.env, programmingLanguage);
     }
     return this.ragAgent!;
   }
@@ -100,7 +108,10 @@ export class MainAgentImpl implements MainAgent {
   }
 
   // Main query processing method with tracing, translation, and fallback logic
-  async processQuery(query: string): Promise<MainAgentResponse> {
+  async processQuery(
+    query: string,
+    language?: string,
+  ): Promise<MainAgentResponse> {
     // Use OpenAI Agents SDK tracing for observability
     // withTrace creates a trace span for monitoring and debugging
     return await withTrace("OpenAI SDK Knowledge MCP Agent", async () => {
@@ -115,7 +126,7 @@ export class MainAgentImpl implements MainAgent {
 
         try {
           // Step 2: Try RAG search first
-          const ragAgent = await this.getRAGAgent();
+          const ragAgent = await this.getRAGAgent(language);
           agentResponse = await run(ragAgent, englishQuery);
 
           // Step 3: Check if RAG result is insufficient, fallback to web search
@@ -195,8 +206,8 @@ export class MainAgentImpl implements MainAgent {
   }
 
   // Simplified interface for generating text responses
-  async generateResponse(prompt: string): Promise<string> {
-    const response = await this.processQuery(prompt);
+  async generateResponse(prompt: string, language?: string): Promise<string> {
+    const response = await this.processQuery(prompt, language);
     return response.content;
   }
 }

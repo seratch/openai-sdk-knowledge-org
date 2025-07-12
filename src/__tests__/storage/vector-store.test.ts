@@ -50,12 +50,14 @@ describe("VectorStoreImpl", () => {
       const documents = [
         {
           id: "doc1",
+          url: "https://example.com/doc1",
           content: "Content 1",
           embedding: new Array(1536).fill(0.1),
           metadata: {},
         },
         {
           id: "doc2",
+          url: "https://example.com/doc2",
           content: "Content 2",
           embedding: new Array(1536).fill(0.1),
           metadata: {},
@@ -76,6 +78,7 @@ describe("VectorStoreImpl", () => {
       const documents = [
         {
           id: "doc1",
+          url: "https://example.com/doc1",
           content: "Content 1",
           embedding: new Array(1536).fill(0.1),
           metadata: {},
@@ -153,7 +156,7 @@ describe("VectorStoreImpl", () => {
         ],
       });
 
-      const result = await vectorStore.search("test query", 10);
+      const result = await vectorStore.search("test query", undefined, 10);
 
       expect(result.length).toBeGreaterThan(0);
       expect(mockVectorizeIndex.query).toHaveBeenCalled();
@@ -165,7 +168,7 @@ describe("VectorStoreImpl", () => {
         new Error("Vector search failed"),
       );
 
-      const result = await vectorStore.search("test query", 10);
+      const result = await vectorStore.search("test query", undefined, 10);
       expect(result).toEqual([]);
     });
 
@@ -196,7 +199,7 @@ describe("VectorStoreImpl", () => {
         ],
       });
 
-      const result = await vectorStore.search(longQuery, 10);
+      const result = await vectorStore.search(longQuery, undefined, 10);
 
       expect(result).toBeDefined();
       expect(Array.isArray(result)).toBe(true);
@@ -225,7 +228,7 @@ describe("VectorStoreImpl", () => {
       const complexQuery =
         "this is a very long query with many keywords that should trigger the sqlite complexity error when processed by the keyword search function because it will create too many like conditions joined with or operators which exceeds the sqlite pattern complexity limit and causes the sqlite_error that we need to fix and debug properly";
 
-      const result = await vectorStore.search(complexQuery, 10);
+      const result = await vectorStore.search(complexQuery, undefined, 10);
 
       expect(result).toBeDefined();
       expect(Array.isArray(result)).toBe(true);

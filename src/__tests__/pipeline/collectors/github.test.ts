@@ -105,6 +105,7 @@ describe("GitHubCollectorImpl", () => {
         content: "File content from GitHub",
         download_url:
           "https://raw.githubusercontent.com/test/repo/main/README.md",
+        url: "https://raw.githubusercontent.com/test/repo/main/README.md",
       });
       expect(content[1]).toEqual({
         name: "src",

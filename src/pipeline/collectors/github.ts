@@ -8,6 +8,7 @@ import { Logger } from "@/logger";
  */
 export interface GitHubContent {
   name: string; // File or directory name
+  url: string; // File or directory URL
   path: string; // Full path from repository root (unique identifier)
   type: "file" | "dir"; // Content type from GitHub API
   content?: string; // File content (only for files, not directories)
@@ -34,6 +35,7 @@ export interface GitHubIssueComment {
  */
 export interface GitHubIssue {
   id: number; // GitHub's global issue ID (unique identifier)
+  url: string; // Issue URL
   number: number; // Issue number within repository
   title: string; // Issue title
   body: string; // Issue description/content
@@ -52,6 +54,7 @@ export interface GitHubIssue {
  */
 export interface GitHubPullRequest {
   id: number; // GitHub's global PR ID (unique identifier)
+  url: string; // PR URL
   number: number; // PR number within repository
   title: string; // PR title
   body: string; // PR description/content
@@ -200,6 +203,7 @@ export class GitHubCollectorImpl implements GitHubCollector {
           const content = await this.fetchFileContent(item.download_url);
           results.push({
             name: item.name,
+            url: item.download_url ?? item.url,
             path: item.path,
             type: "file",
             content,
@@ -211,6 +215,7 @@ export class GitHubCollectorImpl implements GitHubCollector {
           );
           results.push({
             name: item.name,
+            url: item.url,
             path: item.path,
             type: "dir",
           });
@@ -224,6 +229,7 @@ export class GitHubCollectorImpl implements GitHubCollector {
           );
           results.push({
             name: item.name,
+            url: item.url,
             path: item.path,
             type: "dir",
           });
@@ -301,6 +307,7 @@ export class GitHubCollectorImpl implements GitHubCollector {
           .filter((issue: any) => !issue.pull_request)
           .map((issue: any) => ({
             id: issue.id,
+            url: issue.source_url || issue.url,
             number: issue.number,
             title: issue.title || "",
             body: issue.body || "",
@@ -393,6 +400,7 @@ export class GitHubCollectorImpl implements GitHubCollector {
 
       return data.map((pr: any) => ({
         id: pr.id,
+        url: pr.source_url || pr.url,
         number: pr.number,
         title: pr.title || "",
         body: pr.body || "",
@@ -431,6 +439,7 @@ export class GitHubCollectorImpl implements GitHubCollector {
   ): boolean {
     const isRecursiveTestFile =
       filename === "README.md" ||
+      filename.includes("/ja/") || // exclude translated files
       filename.startsWith("src/main.") ||
       (filename.startsWith("openai-java") &&
         (filename.includes("/test") || filename.includes("/tests")));
@@ -770,6 +779,7 @@ export class GitHubCollectorImpl implements GitHubCollector {
           .filter((issue: any) => !issue.pull_request)
           .map((issue: any) => ({
             id: issue.id,
+            url: issue.source_url || issue.url,
             number: issue.number,
             title: issue.title || "",
             body: issue.body || "",
@@ -847,6 +857,7 @@ export class GitHubCollectorImpl implements GitHubCollector {
 
       const pullRequests = data.map((pr: any) => ({
         id: pr.id,
+        url,
         number: pr.number,
         title: pr.title || "",
         body: pr.body || "",
@@ -940,6 +951,7 @@ export class GitHubCollectorImpl implements GitHubCollector {
           const content = await this.fetchFileContent(item.download_url);
           results.push({
             name: item.name,
+            url,
             path: item.path,
             type: "file",
             content,
@@ -951,6 +963,7 @@ export class GitHubCollectorImpl implements GitHubCollector {
           );
           results.push({
             name: item.name,
+            url,
             path: item.path,
             type: "dir",
           });
@@ -964,6 +977,7 @@ export class GitHubCollectorImpl implements GitHubCollector {
           );
           results.push({
             name: item.name,
+            url,
             path: item.path,
             type: "dir",
           });

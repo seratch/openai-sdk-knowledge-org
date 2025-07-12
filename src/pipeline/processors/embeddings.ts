@@ -8,6 +8,7 @@ import { buildOpenAIClientForDataPipeline } from "@/openai-client";
 
 export interface EmbeddedDocument {
   id: string;
+  url: string;
   content: string;
   embedding: number[];
   metadata: any;
@@ -105,6 +106,11 @@ export class EmbeddingGeneratorImpl implements EmbeddingGenerator {
           batch.forEach((doc: any, index: number) => {
             results.push({
               id: doc.id,
+              url:
+                doc.url ||
+                doc.metadata?.url ||
+                doc.metadata?.sourceUrl ||
+                "unknown",
               content: doc.content,
               embedding: embeddings[index],
               metadata: doc.metadata,
@@ -149,6 +155,11 @@ export class EmbeddingGeneratorImpl implements EmbeddingGenerator {
                 smallerBatch.forEach((doc: any, index: number) => {
                   results.push({
                     id: doc.id,
+                    url:
+                      doc.url ||
+                      doc.metadata?.url ||
+                      doc.metadata?.sourceUrl ||
+                      "unknown",
                     content: doc.content,
                     embedding: embeddings[index],
                     metadata: doc.metadata,

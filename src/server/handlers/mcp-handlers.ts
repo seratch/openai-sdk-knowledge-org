@@ -9,6 +9,7 @@ import { JsonRpcHandler, type JsonRpcRequest } from "@/server/mcp/mcp-server";
 
 export const mcpWellKnownHandler = async (c: Context<{ Bindings: Env }>) => {
   try {
+    console.log("mcpWellKnownHandler", c.req.url);
     const baseUrl = new URL(c.req.url).origin;
     const mcpOAuth = new MCPOAuth(c.env);
     const metadata = await mcpOAuth.getServerMetadata(baseUrl);

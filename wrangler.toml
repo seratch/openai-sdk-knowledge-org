@@ -7,16 +7,15 @@ compatibility_date = "2024-06-01"
 compatibility_flags = ["nodejs_compat"]
 assets = { directory = "public" }
 
-routes = [
-  { pattern = "openai-sdk-knowledge.org", custom_domain = true }
-]
-
 [env.development]
 name = "openai-sdk-knowledge-mcp-dev"
 [env.staging]
 name = "openai-sdk-knowledge-mcp-staging"
 [env.production]
 name = "openai-sdk-knowledge-mcp-prod"
+routes = [
+  { pattern = "openai-sdk-knowledge.org", custom_domain = true }
+]
 
 # --------------------------
 # Queues

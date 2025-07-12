@@ -9,7 +9,10 @@ import {
   createTopicRelevanceGuardrail,
 } from "@/agents/guardrails/input-guardrails";
 
-export async function createRAGAgent(env: Env): Promise<Agent> {
+export async function createRAGAgent(
+  env: Env,
+  programmingLanguage: string | undefined,
+): Promise<Agent> {
   return new Agent({
     name: "rag-agent",
     model: "gpt-4.1-nano", // for faster response time
@@ -32,7 +35,11 @@ export async function createRAGAgent(env: Env): Promise<Agent> {
 - Speed: You should not take time for responding to this; find a great balance between speed and accuracy.
 `,
     tools: [
-      createRAGSearchTool(await getVectorStore(env), new TranslatorAgent(env)),
+      createRAGSearchTool(
+        await getVectorStore(env),
+        programmingLanguage,
+        new TranslatorAgent(env),
+      ),
     ],
     inputGuardrails: [
       createContentModerationGuardrail(env.OPENAI_API_KEY),

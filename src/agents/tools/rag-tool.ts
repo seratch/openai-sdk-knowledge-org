@@ -7,6 +7,7 @@ import { Logger } from "@/logger";
 
 export function createRAGSearchTool(
   vectorStore: VectorStore,
+  programmingLanguage: string | undefined,
   translator: TranslatorAgent,
 ): Tool {
   return tool({
@@ -48,6 +49,7 @@ export function createRAGSearchTool(
 
         const searchResults = await vectorStore.search(
           translatedQuery,
+          programmingLanguage,
           maxResults ?? 10,
         );
 

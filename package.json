@@ -16,6 +16,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "db:reset:dev": "rm -rf .wrangler/ && npm run db:migrate:dev",
+    "vectorize:reset:dev": "npx wrangler vectorize delete openai-sdk-embeddings-dev && npx wrangler vectorize create openai-sdk-embeddings-dev --dimensions=1536 --metric=cosine",
     "db:migrate:dev": "wrangler d1 migrations apply openai-sdk-knowledge-mcp-db --local",
     "db:migrate:prod": "CI=1 wrangler d1 migrations apply openai-sdk-knowledge-mcp-db --env=production --remote",
     "count-lines": "echo \"Counting lines of code...\" && MAIN=$(find src -name '*.ts' -not -path 'src/__tests__/*' -exec wc -l {} + | tail -1 | awk '{print $1}') && TESTS=$(find src/__tests__ -name '*.ts' -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}' || echo 0) && TOTAL=$((MAIN + TESTS)) && echo \"main: $MAIN lines, tests: $TESTS lines, total: $TOTAL lines\""
@@ -43,7 +44,7 @@
     "ts-jest": "^29.1.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.0.0",
-    "wrangler": "^4.23.0"
+    "wrangler": "^4.24.0"
   },
   "engines": {
     "node": ">=22.0.0"

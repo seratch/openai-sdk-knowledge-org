@@ -57,8 +57,10 @@ export class MCPServer {
         throw new Error("Tool arguments are required");
       }
       switch (name) {
-        case TOOL_SEARCH_OPENAI_SDK_AND_DOCS:
-          return await this.callSearch(args);
+        case TOOL_ANSWER_OPENAI_QUESTIONS:
+          return await this.callAnswerQuestion(args);
+        case TOOL_LIST_OPENAI_RESOURCES:
+          return await this.callListResources(args);
         case TOOL_CHATGPT_DR_SEARCH:
           return await this.callChatGPTDRSearch(args);
         case TOOL_CHATGPT_DR_FETCH:
@@ -71,7 +73,7 @@ export class MCPServer {
 
   // Standard MCP search tool implementation
   // Uses RAG agent with web search fallback for comprehensive answers
-  async callSearch({ query }: Record<string, any>): Promise<{
+  async callAnswerQuestion({ query, language }: Record<string, any>): Promise<{
     content: Array<{ type: string; text: string }>;
   }> {
     try {
@@ -85,7 +87,7 @@ export class MCPServer {
       try {
         // Use main agent which orchestrates RAG and web search
         const agent = createMainAgent(this.env);
-        const result = await agent.generateResponse(query);
+        const result = await agent.generateResponse(query, language);
         return { content: [{ type: "text" as const, text: result }] };
       } catch (error) {
         // Handle input guardrail violations
@@ -105,6 +107,53 @@ export class MCPServer {
           },
         ],
       };
+    }
+  }
+
+  async callListResources(args: Record<string, any>): Promise<{
+    content: Array<{
+      type: string;
+      uri: string;
+      name: string;
+      description: string;
+      mimeType: string;
+    }>;
+  }> {
+    const { query, language, limit = 10 } = args;
+    try {
+      if (!this.env.OPENAI_API_KEY) {
+        return { content: [] };
+      }
+
+      // Use vector store for semantic search
+      const vectorStore = await getVectorStore(this.env);
+      const searchResults = await vectorStore.search(
+        query,
+        language,
+        limit * 2,
+      );
+      const content = searchResults.slice(0, limit).map((result) => {
+        return {
+          type: "resource_link",
+          uri:
+            result.metadata?.url ||
+            result.metadata?.sourceUrl ||
+            "https://platform.openai.com/docs",
+          name:
+            result.metadata?.title ||
+            result.metadata?.sourceTitle ||
+            "OpenAI Documentation",
+          description:
+            result.content.substring(0, 500) +
+            (result.content.length > 500 ? "..." : ""),
+          mimeType: "text/plain",
+        };
+      });
+      const response = { content };
+      Logger.lazyDebug(() => `search result: ${JSON.stringify(response)}`);
+      return response;
+    } catch (error) {
+      return { content: [] };
     }
   }
 
@@ -209,9 +258,11 @@ export class MCPServer {
 // Handles the JSON-RPC 2.0 protocol used by MCP clients
 // JSON-RPC Specification: https://www.jsonrpc.org/specification
 export class JsonRpcHandler {
+  private env: Env;
   private mcpServer: MCPServer;
 
   constructor(env: Env) {
+    this.env = env;
     this.mcpServer = new MCPServer(env);
   }
 
@@ -359,8 +410,11 @@ export class JsonRpcHandler {
       const toolArgs = request.params.arguments || {};
       let result;
       switch (toolName) {
-        case TOOL_SEARCH_OPENAI_SDK_AND_DOCS:
-          result = await this.mcpServer.callSearch(toolArgs);
+        case TOOL_ANSWER_OPENAI_QUESTIONS:
+          result = await this.mcpServer.callAnswerQuestion(toolArgs);
+          break;
+        case TOOL_LIST_OPENAI_RESOURCES:
+          result = await this.mcpServer.callListResources(toolArgs);
           break;
         case TOOL_CHATGPT_DR_SEARCH:
           if (isChatGPTDeepResearch) {
@@ -403,9 +457,24 @@ export class JsonRpcHandler {
     request: JsonRpcRequest,
   ): Promise<JsonRpcResponse> {
     const requestId = request.id ?? null;
+    const vectorStore = await getVectorStore(this.env);
+    const results = await vectorStore.search("Agents SDK", undefined);
+    const resources = results.map((result) => {
+      return {
+        uri:
+          result.metadata?.url ||
+          result.metadata?.sourceUrl ||
+          "https://platform.openai.com/docs",
+        name:
+          result.metadata?.title ||
+          result.metadata?.sourceTitle ||
+          "OpenAI Documentation",
+        mimeType: toMimeType(result.metadata?.language),
+      };
+    });
     return {
       jsonrpc: "2.0",
-      result: { resources: [] },
+      result: { resources },
       id: requestId,
     };
   }
@@ -414,13 +483,32 @@ export class JsonRpcHandler {
     request: JsonRpcRequest,
   ): Promise<JsonRpcResponse> {
     const requestId = request.id ?? null;
-    return this.createErrorResponse(
-      {
-        code: JSON_RPC_ERRORS.METHOD_NOT_FOUND.code,
-        message: "Resource reading not implemented",
+    const { uri } = request.params;
+    const vectorStore = await getVectorStore(this.env);
+    const results = await vectorStore.search(`url:${uri}`, undefined, 1);
+    if (results.length === 0) {
+      return this.createErrorResponse(
+        {
+          code: JSON_RPC_ERRORS.METHOD_NOT_FOUND.code,
+          message: "Resource not found",
+        },
+        requestId,
+      );
+    }
+    const result = results[0];
+    return {
+      jsonrpc: "2.0",
+      id: 2,
+      result: {
+        contents: [
+          {
+            uri: uri,
+            mimeType: "text/plain",
+            text: result.content,
+          },
+        ],
       },
-      requestId,
-    );
+    };
   }
 
   private createErrorResponse(
@@ -428,6 +516,14 @@ export class JsonRpcHandler {
     id: string | number | null,
   ): JsonRpcResponse {
     return { jsonrpc: "2.0", error, id };
+  }
+}
+
+function toMimeType(language: string | undefined) {
+  if (language === undefined) {
+    return "text/plain";
+  } else {
+    return `text/x-${language}`;
   }
 }
 
@@ -480,14 +576,15 @@ export type ChatGPTDRFetchResult =
 
 // Tools
 
-export const TOOL_SEARCH_OPENAI_SDK_AND_DOCS = "search_openai_sdk_and_docs";
+export const TOOL_ANSWER_OPENAI_QUESTIONS = "answer_openai_questions";
+export const TOOL_LIST_OPENAI_RESOURCES = "list_openai_resources";
 export const TOOL_CHATGPT_DR_SEARCH = "search";
 export const TOOL_CHATGPT_DR_FETCH = "fetch";
 export const DEFAULT_TOOLS = [
   {
-    name: TOOL_SEARCH_OPENAI_SDK_AND_DOCS,
+    name: TOOL_ANSWER_OPENAI_QUESTIONS,
     description:
-      "Help developers to use OpenAI API and SDKs. You can use this when you need help on how to call OpenAI's APIs (e.g., Responses API, FT, tools, and so on) and OpenAI Agents SDK. Include details such as programming language, features, requirements in the query to get better results.",
+      "This tool provides a complete answer to a developer's question. It fetches documents and code snippets, and carefully considers the best answer, so it may take a few seconds to respond. You can use this when you need a quality answer. Include details such as programming language, features, and requirements in your query to get better results.",
     inputSchema: {
       type: "object",
       properties: {
@@ -495,6 +592,38 @@ export const DEFAULT_TOOLS = [
           type: "string",
           description:
             "Search query about OpenAI SDK code and documents. Be specific about details and include programming language, OpenAI features, module names, and keywords in the query to get better results.",
+        },
+        language: {
+          type: "string",
+          description:
+            "Programming language of the code and documents to search. If you don't specify this, the tool will search for code and documents in all languages. Having this property rather than including it in the query is more efficient.",
+        },
+        limit: {
+          type: "number",
+          description:
+            "Maximum number of search results to return. Higher values provide more comprehensive coverage but may include less relevant results. Recommended: 5-10 for focused searches, 15-20 for broader exploration.",
+          default: 10,
+        },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: TOOL_LIST_OPENAI_RESOURCES,
+    description:
+      "This tool provides a list of documents and code snippets that are relevant to a developer's question. It is a good tool to use when the MCP client needs only relevant document content and it can decide the best answer for the input. Also, this tool is much faster than the answer_openai_questions tool.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description:
+            "Search query about OpenAI SDK code and documents. Be specific about details and include programming language, OpenAI features, module names, and keywords in the query to get better results.",
+        },
+        language: {
+          type: "string",
+          description:
+            "Programming language of the code and documents to search. If you don't specify this, the tool will search for code and documents in all languages. Having this property rather than including it in the query is more efficient.",
         },
         limit: {
           type: "number",

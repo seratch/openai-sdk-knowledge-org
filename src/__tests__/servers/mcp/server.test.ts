@@ -1,4 +1,7 @@
-import { MCPServer } from "../../../server/mcp/mcp-server";
+import {
+  MCPServer,
+  TOOL_ANSWER_OPENAI_QUESTIONS,
+} from "../../../server/mcp/mcp-server";
 import { mockEnv } from "../../utils/mocks";
 
 jest.mock("@modelcontextprotocol/sdk/server/index.js", () => ({
@@ -110,7 +113,7 @@ describe("MCPServer", () => {
 
     const result = await callHandler({
       params: {
-        name: "search_openai_sdk_and_docs",
+        name: TOOL_ANSWER_OPENAI_QUESTIONS,
         arguments: { query: "test" },
       },
     });

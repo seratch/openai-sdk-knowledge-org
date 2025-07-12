@@ -12,6 +12,7 @@ import { Env } from "@/env";
 
 // Search options for vector store queries
 export interface DocumentSearchOptions {
+  language?: string;
   limit?: number;
   threshold?: number;
   filter?: Record<string, any>;
@@ -43,7 +44,15 @@ export interface VectorStore {
     query: string,
     options: DocumentSearchOptions,
   ): Promise<DocumentSearchResult[]>;
-  search(query: string, limit: number): Promise<DocumentSearchResult[]>;
+  search(
+    query: string,
+    language: string | undefined,
+  ): Promise<DocumentSearchResult[]>;
+  search(
+    query: string,
+    language: string | undefined,
+    limit?: number,
+  ): Promise<DocumentSearchResult[]>;
 }
 
 // Vector store implementation using Cloudflare Vectorize and D1 Database
@@ -121,13 +130,17 @@ export class VectorStoreImpl implements VectorStore {
           `Performing vector search for query: "${query.substring(0, 100)}"`,
       );
       const embeddingGen = new EmbeddingGeneratorImpl(this.openaiApiKey);
+      if (options.language) {
+        query = `language:${options.language} ${query}`;
+      }
       const queryEmbedding = await embeddingGen.generateEmbeddings([query]);
 
       Logger.lazyDebug(
         () => `Querying Vectorize with topK: ${options.limit || 10}`,
       );
       const vectorResults = await this.vectorize.query(queryEmbedding[0], {
-        topK: options.limit || 10,
+        // max topK is 20
+        topK: (options.limit && options.limit > 20 ? 20 : options.limit) || 10,
         returnMetadata: "all",
       });
 
@@ -150,10 +163,14 @@ export class VectorStoreImpl implements VectorStore {
     }
   }
 
-  async search(query: string, limit: number): Promise<DocumentSearchResult[]> {
+  async search(
+    query: string,
+    language: string | undefined,
+    limit?: number | undefined,
+  ): Promise<DocumentSearchResult[]> {
     try {
       return await this.searchWithOptions(query, {
-        limit,
+        limit: limit ?? 20,
         threshold: 0.3,
       });
     } catch (error) {
