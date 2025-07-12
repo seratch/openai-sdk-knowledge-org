@@ -20,6 +20,7 @@ function renderPage({
   <meta charset="UTF-8">
   <meta name="robots" content="noai, noimageai">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="This is an unofficial MCP server for OpenAI SDK Knowledge. Ask questions about OpenAI API, SDKs, and best practices.">
   <title>${title}</title>
   <link rel="icon" href="/favicon.ico" />
   <link rel="icon" type="image/png" href="/favicon.png" />
@@ -163,6 +164,7 @@ export function renderAdminInterface(user?: AuthUser, env?: Env): string {
     <meta charset="UTF-8">
     <meta name="robots" content="noai, noimageai">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="This is an unofficial MCP server for OpenAI SDK Knowledge. Ask questions about OpenAI API, SDKs, and best practices.">
     <title>Admin Dashboard - OpenAI SDK Knowledge MCP</title>
     <link rel="icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" href="/favicon.png" />
@@ -1002,6 +1004,7 @@ export function renderWebInterface(user?: AuthUser): string {
     <meta charset="UTF-8">
     <meta name="robots" content="noai, noimageai">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="This is an unofficial MCP server for OpenAI SDK Knowledge. Ask questions about OpenAI API, SDKs, and best practices.">
     <title>OpenAI SDK Knowledge MCP</title>
     <link rel="icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" href="/favicon.png" />
