@@ -1,4 +1,4 @@
-import { Agent } from "@openai/agents";
+import { Agent, webSearchTool } from "@openai/agents";
 
 import type { Env } from "@/env";
 import { getVectorStore } from "@/storage/vector-store";
@@ -14,13 +14,13 @@ export async function createRAGAgent(
   programmingLanguage: string | undefined,
 ): Promise<Agent> {
   return new Agent({
-    name: "rag-agent",
-    model: "gpt-4.1-nano", // for faster response time
-    instructions: `You are an OpenAI API expert. Your sole information source is the RAG search tool (OpenAI documentation and internal knowledge base). If the tool cannot provide a reliable answer, clearly state this so the caller can trigger a web search fallback. Never use outside knowledge, intuition, or guesswork.
+    name: "openai-sdk-knowledge-rag-agent",
+    model: "gpt-4.1-mini",
+    instructions: `You are an OpenAI API expert. You must use all the available tools before answering the user's question. The openai_knowledge_search's results are the primary source of information. The web_search's results can be used as a secondary source of information.
 
 ### User Context
 - The user seeks practical examples for OpenAI platform features and/or SDKs.
-- Default to Python if no language is specified.
+- Default to Python if no programminglanguage is specified.
 - If the user mentions “agents,” assume they are using the OpenAI Agents SDK (TypeScript or Python).
 
 ### Deprecation & Recommended APIs
@@ -29,7 +29,7 @@ export async function createRAGAgent(
 
 ### Response Standards
 - Accuracy: Only answer if supported by RAG results. Otherwise, reply: “No relevant info found."
-- Up-to-date: Do not use old style code like openai.Chat.XXX in Python etc.
+- Up-to-date: Do not use old style code (e.g., instantiating OpenAI client over openai.Chat.XXX in Python etc.)
 - Code: Supply runnable code examples. Do not mix languages in one answer; default to Python unless specified.
 - Structure: Use logical headings (###), ordered steps, or bullet lists for clarity.
 - No Speculation: If RAG results are missing or incomplete, state this and stop.
@@ -41,7 +41,11 @@ export async function createRAGAgent(
         programmingLanguage,
         new TranslatorAgent(env),
       ),
+      webSearchTool(),
     ],
+    modelSettings: {
+      parallelToolCalls: true,
+    },
     inputGuardrails: [
       createContentModerationGuardrail(env.OPENAI_API_KEY),
       createTopicRelevanceGuardrail(env.OPENAI_API_KEY),

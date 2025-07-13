@@ -7,11 +7,11 @@ import { Logger } from "@/logger";
 
 export function createRAGSearchTool(
   vectorStore: VectorStore,
-  programmingLanguage: string | undefined,
+  defaultProgrammingLanguage: string | undefined,
   translator: TranslatorAgent,
 ): Tool {
   return tool({
-    name: "rag_search",
+    name: "openai_knowledge_search",
     description:
       "Search the OpenAI documentation and knowledge base using RAG (Retrieval Augmented Generation). Use this tool first to find relevant context before considering web search.",
     parameters: z.object({
@@ -27,6 +27,13 @@ export function createRAGSearchTool(
         .describe(
           "Language code for translation (e.g., 'ja', 'es', 'fr'). Defaults to 'en'.",
         ),
+      programmingLanguage: z
+        .string()
+        .nullable()
+        .optional()
+        .describe(
+          "Programming language of the code and documents to search. If you don't specify this, the tool will search for code and documents in all languages. Having this property rather than including it in the query is more efficient.",
+        ),
       maxResults: z
         .number()
         .nullable()
@@ -37,7 +44,12 @@ export function createRAGSearchTool(
     }),
     execute: async (params) => {
       try {
-        const { query, language = "en", maxResults } = params;
+        const {
+          query,
+          language = "en",
+          maxResults,
+          programmingLanguage,
+        } = params;
 
         Logger.info(`RAG search initiated for query: ${query}`);
 
@@ -49,7 +61,7 @@ export function createRAGSearchTool(
 
         const searchResults = await vectorStore.search(
           translatedQuery,
-          programmingLanguage,
+          programmingLanguage || defaultProgrammingLanguage,
           maxResults ? maxResults * 2 : 20,
         );
 

@@ -2,7 +2,10 @@
 // This Cloudflare Worker provides an MCP server with RAG capabilities for OpenAI SDK knowledge
 // Documentation: https://developers.cloudflare.com/workers/runtime-apis/handlers/
 
-import { getGlobalTraceProvider } from "@openai/agents";
+import {
+  getGlobalTraceProvider,
+  setDefaultOpenAITracingExporter,
+} from "@openai/agents";
 import type { MessageBatch } from "@cloudflare/workers-types";
 
 import { Env } from "@/env";
@@ -15,9 +18,11 @@ export default {
   // HTTP request handler - processes all incoming HTTP requests
   // https://developers.cloudflare.com/workers/runtime-apis/handlers/fetch/
   async fetch(request: Request, env: Env, ctx: any): Promise<Response> {
+    setDefaultOpenAITracingExporter();
     try {
       // Delegate to Hono app for request handling
-      return app.fetch(request, env, ctx);
+      const response = await app.fetch(request, env, ctx);
+      return response;
     } finally {
       // Flush OpenAI Agents SDK traces before response completes
       // This ensures telemetry data is properly sent to OpenAI
@@ -29,6 +34,7 @@ export default {
   // Queue handler - processes background jobs via Cloudflare Queues
   // https://developers.cloudflare.com/queues/
   async queue(batch: MessageBatch<{ jobId: number }>, env: Env, ctx: any) {
+    setDefaultOpenAITracingExporter();
     Logger.info(`Processing job queue`, {
       batch: batch.messages.map((msg) => msg.body.jobId),
     });
