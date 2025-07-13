@@ -114,7 +114,7 @@ export class MainAgentImpl implements MainAgent {
   ): Promise<MainAgentResponse> {
     // Use OpenAI Agents SDK tracing for observability
     // withTrace creates a trace span for monitoring and debugging
-    return await withTrace("OpenAI SDK Knowledge MCP Agent", async () => {
+    return withTrace("OpenAI SDK Knowledge MCP Agent", async () => {
       try {
         // Step 1: Translate query to English if needed
         const translator = new TranslatorAgent(this.env);
